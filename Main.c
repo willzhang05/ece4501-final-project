@@ -32,7 +32,6 @@ int16_t y = 63;  			// vertical position of the crosshair, initially 63
 int16_t prevx, prevy;	// Previous x and y values of the crosshair
 uint8_t select;  			// joystick push
 uint8_t area[2];
-uint32_t PseudoCount;
 
 unsigned long NumCreated;   		// Number of foreground threads created
 unsigned long NumSamples;   		// Incremented every ADC sample, in Producer
@@ -53,6 +52,9 @@ unsigned long const JitterSize=JITTERSIZE;
 unsigned long JitterHistogram[JITTERSIZE]={0,};
 unsigned long TotalWithI1;
 unsigned short MaxWithI1;
+
+unsigned long Score;
+unsigned long Life;
 
 void Device_Init(void){
 	UART_Init();
@@ -120,6 +122,7 @@ void Producer(void){
 			JitterHistogram[jitter]++; 
 		}
 		LastTime = thisTime;
+		OS_Suspend();
 	}
 }
 
@@ -188,128 +191,16 @@ void Consumer(void){
 		BSP_LCD_DrawCrosshair(prevx, prevy, LCD_BLACK); // Draw a black crosshair
 		BSP_LCD_DrawCrosshair(data.x, data.y, LCD_RED); // Draw a red crosshair
 
-		BSP_LCD_Message(1, 5, 3, "X: ", x);		
-		BSP_LCD_Message(1, 5, 12, "Y: ", y);
+		BSP_LCD_Message(1, 5, 3, "Score: ", Score);		
+		BSP_LCD_Message(1, 5, 12, "Life: ", Life);
 		ConsumerCount++;
 		OS_bSignal(&LCDFree);
 		prevx = data.x; 
 		prevy = data.y;
-		//OS_Suspend();
+		OS_Suspend();
 	}
   OS_Kill();  // done
 }
-
-
-//--------------end of Task 3-----------------------------
-
-//------------------Task 4--------------------------------
-// foreground thread that runs without waiting or sleeping
-// it executes some calculation related to the position of crosshair 
-//******** CubeNumCalc *************** 
-// foreground thread, calculates the virtual cube number for the crosshair
-// never blocks, never sleeps, never dies
-// inputs:  none
-// outputs: none
-
-void CubeNumCalc(void){ 
-	uint16_t CurrentX,CurrentY;
-  while(1) {
-		if(NumSamples < RUNLENGTH){
-			CurrentX = x; CurrentY = y;
-			area[0] = CurrentX / 22;
-			area[1] = CurrentY / 20;
-			Calculation++;
-			//OS_Suspend();
-		}
-  }
-}
-//--------------end of Task 4-----------------------------
-
-//------------------Task 5--------------------------------
-// UART background ISR performs serial input/output
-// Two software fifos are used to pass I/O data to foreground
-// The interpreter runs as a foreground thread
-// inputs:  none
-// outputs: none
-
-void Interpreter(void){
-	char command[80];
-  while(1){
-    OutCRLF(); UART_OutString(">>");
-		UART_InString(command,79);
-		OutCRLF();
-		if (!(strcmp(command,"NumSamples"))){
-			UART_OutString("NumSamples: ");
-			UART_OutUDec(NumSamples);
-		}
-		else if (!(strcmp(command,"NumCreated"))){
-			UART_OutString("NumCreated: ");
-			UART_OutUDec(NumCreated);
-		}
-		else if (!(strcmp(command,"MaxJitter"))){
-			UART_OutString("MaxJitter: ");
-			UART_OutUDec(MaxJitter);
-		}
-		else if (!(strcmp(command,"DataLost"))){
-			UART_OutString("DataLost: ");
-			UART_OutUDec(DataLost);
-		}
-		else if (!(strcmp(command,"UpdateWork"))){
-			UART_OutString("UpdateWork: ");
-			UART_OutUDec(UpdateWork);
-		}
-	  else if (!(strcmp(command,"Calculations"))){
-			UART_OutString("Calculations: ");
-			UART_OutUDec(Calculation);
-		}
-		else if (!(strcmp(command,"FifoSize"))){
-			UART_OutString("JSFifoSize: ");
-			UART_OutUDec(JSFIFOSIZE);
-		}
-	  else if (!(strcmp(command,"Display"))){
-			UART_OutString("DisplayWork: ");
-			UART_OutUDec(DisplayCount);
-		}
-		else if (!(strcmp(command,"Consumer"))){
-			UART_OutString("ConsumerWork: ");
-			UART_OutUDec(ConsumerCount);
-		}
-		else{
-			UART_OutString("Command incorrect!");
-		}
-		//OS_Suspend();
-  }
-}
-//--------------end of Task 5-----------------------------
-
-//------------------Task 6--------------------------------
-
-//************ PeriodicUpdater *************** 
-// background thread, do some pseudo works to test if you can add multiple periodic threads
-// inputs:  none
-// outputs: none
-void PeriodicUpdater(void){
-	PseudoCount++;
-}
-
-//************ Display *************** 
-// foreground thread, do some pseudo works to test if you can add multiple periodic threads
-// inputs:  none
-// outputs: none
-void Display(void){
-	while(NumSamples < RUNLENGTH){
-		OS_bWait(&LCDFree);
-		BSP_LCD_Message(1,4,0,"PseudoCount: ",PseudoCount);
-		DisplayCount++;
-		OS_bSignal(&LCDFree);
-		//OS_Sleep(1);
-		//OS_Suspend();
-
-	}
-  OS_Kill();  // done
-}
-
-//--------------end of Task 6-----------------------------
 
 //------------------Task 7--------------------------------
 // background thread executes with button2
@@ -336,10 +227,10 @@ void Restart(void){
   NumSamples = 0;
   UpdateWork = 0;
 	MaxJitter = 0;       // in 1us units
-	PseudoCount = 0;
+	Score = 0;
+	Life = 0;
 	x = 63; y = 63;
 	NumCreated += OS_AddThread(&Consumer,128,1); 
-	NumCreated += OS_AddThread(&Display,128,3);
   OS_Kill();  // done, OS does not return from a Kill
 } 
 
@@ -375,7 +266,8 @@ int main(void){
   DataLost = 0;        // lost data between producer and consumer
   NumSamples = 0;
   MaxJitter = 0;       // in 1us units
-	PseudoCount = 0;
+	Score = 0;
+	Life = 0;
 
 //********initialize communication channels
   JsFifo_Init();
@@ -384,14 +276,10 @@ int main(void){
   OS_AddSW1Task(&SW1Push, 4);
 	OS_AddSW2Task(&SW2Push, 4);
   OS_AddPeriodicThread(&Producer, PERIOD, 3); // 2 kHz real time sampling of PD3
-	OS_AddPeriodicThread(&PeriodicUpdater, PSEUDOPERIOD, 3);
 	
   NumCreated = 0 ;
 // create initial foreground threads
-  NumCreated += OS_AddThread(&Interpreter, 128, 2); 
   NumCreated += OS_AddThread(&Consumer, 128, 1); 
-	NumCreated += OS_AddThread(&CubeNumCalc, 128, 3); 
-	NumCreated += OS_AddThread(&Display, 128, 3);
  
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
