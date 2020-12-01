@@ -24,6 +24,7 @@
 #define PSEUDOPERIOD 8000000
 #define LIFETIME 1000
 #define RUNLENGTH 600  // 30 seconds run length
+#define DEFAULT_LIFE 10
 
 extern Sema4Type LCDFree;
 uint16_t
@@ -291,6 +292,16 @@ int CheckBlockIntersection() {
     OS_bSignal(&CubeDrawing);
     return intersect;
 }
+static uint32_t restarting = 0;
+Sema4Type ResSem;
+
+int CheckRestarting() {
+	int res;
+	OS_bWait(&ResSem);
+	res = restarting;
+	OS_bSignal(&ResSem);
+	return res;
+}
 
 void InitAndMoveBlocks(void) {
     int i;
@@ -302,13 +313,17 @@ void InitAndMoveBlocks(void) {
             if (cubes[i].dead) continue;
             if (cubes[i].life == 0) {
                 KillCube(&cubes[i]);
-                OS_bWait(&InfoSem);
-                Life -= 1;
-                OS_bSignal(&InfoSem);
+                if (Life > 0) {
+                  OS_bWait(&InfoSem);
+                  Life -= 1;
+                  OS_bSignal(&InfoSem);
+                }
             }
         }
         OS_bSignal(&NeedCubeRedraw);
         OS_Sleep(1000);
+				
+				if (CheckRestarting()) break;
 
         OS_bWait(&CubeDrawing);
         for (i = 0; i < NUM_CUBES; ++i) {
@@ -489,7 +504,6 @@ void Consumer(void) {
     while (CheckLife() > 0) {
         jsDataType data;
         JsFifo_Get(&data);
-        CheckBlockIntersection();
         OS_bSignal(&NeedCubeRedraw);
         OS_bWait(&LCDFree);
 
@@ -502,11 +516,44 @@ void Consumer(void) {
         OS_bSignal(&InfoSem);
         ConsumerCount++;
         OS_bSignal(&LCDFree);
+        CheckBlockIntersection();
         prevx = data.x;
         prevy = data.y;
         OS_Suspend();
     }
     OS_Kill();  // done
+}
+
+void MoveCubeThread(struct Cube *cube) {
+    while (CheckLife() > 0) {
+        OS_Wait(&MoveCubesSem);
+        MoveCube(cube);
+        cube->life--;
+        OS_Signal(&DoneMovingCubesSem);
+        OS_Wait(&ThrottleSem);
+    }
+		OS_Kill();
+}
+
+void MoveCube0(void) {
+    struct Cube *cube = &cubes[0];
+    MoveCubeThread(cube);
+}
+void MoveCube1(void) {
+    struct Cube *cube = &cubes[1];
+    MoveCubeThread(cube);
+}
+void MoveCube2(void) {
+    struct Cube *cube = &cubes[2];
+    MoveCubeThread(cube);
+}
+void MoveCube3(void) {
+    struct Cube *cube = &cubes[3];
+    MoveCubeThread(cube);
+}
+void MoveCube4(void) {
+    struct Cube *cube = &cubes[4];
+    MoveCubeThread(cube);
 }
 
 //------------------Task 7--------------------------------
@@ -515,13 +562,24 @@ void Consumer(void) {
 // ***********ButtonWork2*************
 void Restart(void) {
     uint32_t StartTime, CurrentTime, ElapsedTime;
+	  OS_bWait(&ResSem);
+	  if (restarting) {
+		  OS_bSignal(&ResSem);
+			OS_Kill();
+			return;
+		}
+	  restarting = 1;
+		OS_bSignal(&ResSem);
     OS_Sleep(50);  // wait
+	  OS_bWait(&InfoSem);
+	  Life = 0; // Kill
+	  OS_bSignal(&InfoSem);
     StartTime = OS_MsTime();
     ElapsedTime = 0;
     OS_bWait(&LCDFree);
     Button2RespTime = OS_MsTime() - Button2PushTime;  // Response on LCD here
     BSP_LCD_FillScreen(BGCOLOR);
-    while (ElapsedTime < 500) {
+    while (ElapsedTime < 1500) {
         CurrentTime = OS_MsTime();
         ElapsedTime = CurrentTime - StartTime;
         BSP_LCD_DrawString(5, 6, "Restarting", LCD_WHITE);
@@ -533,13 +591,31 @@ void Restart(void) {
     UpdateWork = 0;
     MaxJitter = 0;  // in 1us units
     Score = 0;
-    Life = 0;
+    Life = DEFAULT_LIFE;
     x = 63;
     y = 63;
 
     OS_bSignal(&LCDFree);
 
-    InitCubes(NUM_CUBES);
+    OS_InitSemaphore(&MoveCubesSem, 0);
+    OS_InitSemaphore(&DoneMovingCubesSem, 0);
+    OS_InitSemaphore(&ThrottleSem, 0);
+    OS_InitSemaphore(&CubeDrawing, 0);
+    OS_InitSemaphore(&NeedCubeRedraw, 0);
+    OS_InitSemaphore(&InfoSem, 1);
+		
+		OS_bWait(&ResSem);
+		restarting = 0;
+		OS_bSignal(&ResSem);
+		
+    OS_AddThread(&Consumer, 128, 1);
+    OS_AddThread(&InitAndMoveBlocks, 128, 1);
+    OS_AddThread(&DrawBlocks, 128, 3);
+    OS_AddThread(&MoveCube0, 128, 3);
+    OS_AddThread(&MoveCube1, 128, 3);
+    OS_AddThread(&MoveCube2, 128, 3);
+    OS_AddThread(&MoveCube3, 128, 3);
+    OS_AddThread(&MoveCube4, 128, 3);
 
     OS_Kill();  // done, OS does not return from a Kill
 }
@@ -568,36 +644,6 @@ void CrossHair_Init(void) {
     BSP_Joystick_Input(&origin[0], &origin[1], &select);
 }
 
-void MoveCubeThread(struct Cube *cube) {
-    while (1) {
-        OS_Wait(&MoveCubesSem);
-        MoveCube(cube);
-        cube->life--;
-        OS_Signal(&DoneMovingCubesSem);
-        OS_Wait(&ThrottleSem);
-    }
-}
-
-void MoveCube0(void) {
-    struct Cube *cube = &cubes[0];
-    MoveCubeThread(cube);
-}
-void MoveCube1(void) {
-    struct Cube *cube = &cubes[1];
-    MoveCubeThread(cube);
-}
-void MoveCube2(void) {
-    struct Cube *cube = &cubes[2];
-    MoveCubeThread(cube);
-}
-void MoveCube3(void) {
-    struct Cube *cube = &cubes[3];
-    MoveCubeThread(cube);
-}
-void MoveCube4(void) {
-    struct Cube *cube = &cubes[4];
-    MoveCubeThread(cube);
-}
 
 //******************* Main Function**********
 int main(void) {
@@ -607,7 +653,7 @@ int main(void) {
     DataLost = 0;   // lost data between producer and consumer
     MaxJitter = 0;  // in 1us units
     Score = 0;
-    Life = 10;
+    Life = DEFAULT_LIFE;
 
     //********initialize communication channels
     JsFifo_Init();
@@ -623,6 +669,7 @@ int main(void) {
     OS_InitSemaphore(&CubeDrawing, 0);
     OS_InitSemaphore(&NeedCubeRedraw, 0);
     OS_InitSemaphore(&InfoSem, 1);
+    OS_InitSemaphore(&ResSem, 1);
 
     NumCreated = 0;
     // create initial foreground threads
