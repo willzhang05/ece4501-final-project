@@ -84,9 +84,38 @@ unsigned long Life;
 
 static uint32_t rand = 21269;
 
-uint32_t get_rand() {
+/*uint32_t get_rand() {
     rand = rand * rand + rand / 2;
     return rand;
+}*/
+
+// Joystick-based PRNG. Can grab bits 4-7 from rawX and rawY to cut BSP_Joystick_Input() calls by half if needed
+uint32_t get_rand() {
+	uint16_t rawX,rawY; // raw adc value
+	uint8_t select;  // prototype-required
+	uint32_t joy_rand;
+	uint32_t low0, low1, low2, low3, low4, low5, low6, low7; // using 4 LSBs from each 32bit raw value
+	
+	// Grab LSBs from joystick raw values
+	BSP_Joystick_Input(&rawX,&rawY,&select);
+	low0 = rawX & 0x000000f;
+	low1 = (rawY & 0x000000f) << 4;
+	
+	BSP_Joystick_Input(&rawX,&rawY,&select);
+	low2 = (rawX & 0x000000f) << 8;
+	low3 = (rawY & 0x000000f) << 12;
+	
+	BSP_Joystick_Input(&rawX,&rawY,&select);
+	low4 = (rawX & 0x000000f) << 16;
+	low5 = (rawY & 0x000000f) << 20;
+	
+	BSP_Joystick_Input(&rawX,&rawY,&select);
+	low6 = (rawX & 0x000000f) << 24;
+	low7 = (rawY & 0x000000f) << 28;
+
+	// Collate LSB values from low[0-7]
+	joy_rand = (low0 | low1 | low2 | low3 | low4 | low5 | low6 | low7);
+	return joy_rand;
 }
 
 enum Direction get_random_direction() { return (enum Direction)(get_rand() % 4); }
