@@ -35,7 +35,7 @@ uint8_t area[2];
 
 #define HORIZONAL_NUM_BLOCKS 6
 #define VERTICAL_NUM_BLOCKS 6
-#define NUM_CUBES 1
+#define NUM_CUBES 5
 
 // #define DEBUG
 
@@ -94,6 +94,15 @@ Sema4Type MoveCubesSem;
 Sema4Type DoneMovingCubesSem;
 Sema4Type ThrottleSem;
 Sema4Type CubeDrawing;
+Sema4Type InfoSem;
+
+int CheckLife(void) {
+	int res;
+	OS_bWait(&InfoSem);
+	res = Life;
+	OS_bSignal(&InfoSem);
+	return res;
+}
 
 // Must have CubeLock when calling
 int get_movable_directions(struct Cube *cube, int8_t *dirs) {
@@ -251,12 +260,16 @@ void InitAndMoveBlocks(void){
 	int i;
 	InitCubes(NUM_CUBES);
 	OS_bSignal(&CubeDrawing);
-	while (1) {
+	while (CheckLife() > 0) {
 		int num_alive = 0;
 		for (i = 0; i < NUM_CUBES; ++i) {
 			if (cubes[i].dead) continue;
 			if (cubes[i].life == 0) {
 				cubes[i].dead = 1;
+				OS_bSignal(&blocks[cubes[i].y][cubes[i].x]);
+				OS_bWait(&InfoSem);
+				Life -= 1;
+				OS_bSignal(&InfoSem);
 			}
 		}
 		OS_bSignal(&NeedCubeRedraw);
@@ -293,7 +306,7 @@ void InitAndMoveBlocks(void){
 
 
 void DrawBlocks(void){
-	while (1) {
+	while (CheckLife() > 0) {
 		int i;
 		OS_bWait(&NeedCubeRedraw);
 		OS_bWait(&CubeDrawing);
@@ -440,7 +453,7 @@ void SW1Push(void){
 // inputs:  none
 // outputs: none
 void Consumer(void){
-	while (1) {
+	while (CheckLife() > 0) {
 		jsDataType data;
 		JsFifo_Get(&data);
 		OS_bSignal(&NeedCubeRedraw);
@@ -449,8 +462,10 @@ void Consumer(void){
 		BSP_LCD_DrawCrosshair(prevx, prevy, LCD_BLACK); // Draw a black crosshair
 		BSP_LCD_DrawCrosshair(data.x, data.y, LCD_RED); // Draw a red crosshair
 
-		BSP_LCD_Message(1, 5, 3, "Score: ", Score);		
-		BSP_LCD_Message(1, 5, 12, "Life: ", Life);
+		OS_bWait(&InfoSem);
+		BSP_LCD_Message(1, 5, 0, "Score:", Score);		
+		BSP_LCD_Message(1, 5, 11, "Life:", Life);
+		OS_bSignal(&InfoSem);
 		ConsumerCount++;
 		OS_bSignal(&LCDFree);
 		prevx = data.x; 
@@ -557,7 +572,7 @@ int main(void){
   DataLost = 0;        // lost data between producer and consumer
   MaxJitter = 0;       // in 1us units
 	Score = 0;
-	Life = 0;
+	Life = 10;
 
 //********initialize communication channels
   JsFifo_Init();
@@ -572,6 +587,7 @@ int main(void){
 	OS_InitSemaphore(&ThrottleSem, 0);
 	OS_InitSemaphore(&CubeDrawing, 0);
 	OS_InitSemaphore(&NeedCubeRedraw, 0);
+	OS_InitSemaphore(&InfoSem, 1);
 	
   NumCreated = 0 ;
 // create initial foreground threads
@@ -579,10 +595,10 @@ int main(void){
   NumCreated += OS_AddThread(&InitAndMoveBlocks, 128, 1); 
   NumCreated += OS_AddThread(&DrawBlocks, 128, 3); 
   NumCreated += OS_AddThread(&MoveCube0, 128, 3); 
-  // NumCreated += OS_AddThread(&MoveCube1, 128, 3); 
-  //NumCreated += OS_AddThread(&MoveCube2, 128, 3); 
-  //NumCreated += OS_AddThread(&MoveCube3, 128, 3); 
-  //NumCreated += OS_AddThread(&MoveCube4, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube1, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube2, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube3, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube4, 128, 3); 
  
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
