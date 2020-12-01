@@ -37,6 +37,8 @@ uint8_t area[2];
 #define VERTICAL_NUM_BLOCKS 6
 #define NUM_CUBES 4
 
+// #define DEBUG
+
 enum Direction {
 	UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3
 };
@@ -47,6 +49,7 @@ struct Cube {
 	enum Direction dir;
 	uint8_t dead;
 	uint16_t color;
+	uint16_t life;
 };
 
 struct Cube cubes[NUM_CUBES];
@@ -75,10 +78,10 @@ unsigned short MaxWithI1;
 unsigned long Score;
 unsigned long Life;
 
-static uint32_t rand = 17;
+static uint32_t rand = 21269;
 
 uint32_t get_rand() {
-	rand = rand * rand + 67;
+	rand = rand * rand + rand/2;
 	return rand;
 }
 
@@ -119,9 +122,10 @@ int get_movable_directions(struct Cube *cube, int8_t *dirs) {
 	return total;
 }
 
-void Fatal(char *msg) {
+void Fatal(char *msg, char *msg2) {
 	BSP_LCD_DrawString(0,0,"FATAL ERROR:", LCD_RED);
 	BSP_LCD_DrawString(0,1, msg, LCD_RED);
+	BSP_LCD_DrawString(0,2, msg2, LCD_RED);
 	while (1);
 }
 
@@ -150,7 +154,7 @@ void MoveCube(struct Cube *cube) {
 			}
 		}
 		if (i == 4) {
-			Fatal("Couldn't find dir");
+			Fatal("Couldn't find dir", "");
 		}
 	}
 	
@@ -174,7 +178,9 @@ void MoveCube(struct Cube *cube) {
 	used_blocks[cube->y][cube->x] = 1;
 }
 
-void InitCubes(void) {
+#define MAX_CUBE_LIFETIME 10
+
+void InitCubes(int num_cubes) {
 	int y, x, i;
 	// initialize data structures
 	for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
@@ -182,12 +188,23 @@ void InitCubes(void) {
 			used_blocks[y][x] = 0; // free
 		}
 	}
-  for (i = 0; i < NUM_CUBES; ++i) {
+	#ifdef DEBUG
+	BSP_LCD_Message(0, 2, 0, "Making cubes: ", num_cubes);
+	#endif
+  for (i = 0; i < num_cubes; ++i) {
 		uint8_t x = 0;
 		uint8_t y = 0;
+		uint8_t attempt = 0;
 		do {
 			x = get_rand() % HORIZONAL_NUM_BLOCKS;
 			y = get_rand() % VERTICAL_NUM_BLOCKS;
+			#ifdef DEBUG
+			BSP_LCD_Message(0, 4, 0, "attempt: ", attempt);
+			BSP_LCD_Message(0, 5, 0, "x: ", x);
+			BSP_LCD_Message(0, 6, 0, "y: ", y);
+			OS_Sleep(50);
+			#endif
+			if (attempt++ > 5) { Fatal("Ran out of attempts", "RNG is broken"); }
 		}
 		while (used_blocks[y][x]); // keep picking new coordinates until the position is free
 		used_blocks[y][x] = 1;
@@ -196,6 +213,7 @@ void InitCubes(void) {
 		cubes[i].dead = 0;
 		cubes[i].dir = get_random_direction();
 		cubes[i].color = LCD_WHITE;
+		cubes[i].life = 1 + (get_rand() % (MAX_CUBE_LIFETIME - 1));
 	}
 }
 
@@ -221,17 +239,33 @@ void ClearBlocksLCD(void){
 
 void InitAndMoveBlocks(void){
 	int i;
-	OS_InitSemaphore(&CubeLock, 1);
-	InitCubes();
+	OS_InitSemaphore(&CubeLock, 0);
+	InitCubes(NUM_CUBES);
 	while (1) {
-		OS_bWait(&CubeLock);
-		ClearBlocksLCD();
+		int num_alive = 0;
 		for (i = 0; i < NUM_CUBES; ++i) {
+			if (cubes[i].dead) continue;
 			MoveCube(&cubes[i]);
 		}
 		OS_bSignal(&CubeLock);
 		OS_bSignal(&NeedCubeRedraw);
 		OS_Sleep(1000);
+		OS_bWait(&CubeLock);
+		for (i = 0; i < NUM_CUBES; ++i) {
+			if (cubes[i].dead) continue;
+			cubes[i].life--;
+			num_alive++;
+		}
+		ClearBlocksLCD();
+		if (!num_alive) {
+			InitCubes(1 + (get_rand() % 5));
+		}
+		for (i = 0; i < NUM_CUBES; ++i) {
+			if (cubes[i].dead) continue;
+			if (cubes[i].life == 0) {
+				cubes[i].dead = 1;
+			}
+		}
 	}
   OS_Kill();  // done
 }
@@ -434,7 +468,7 @@ void Restart(void){
 	
 	OS_bSignal(&LCDFree);
 	
-	InitCubes();
+	InitCubes(NUM_CUBES);
 	
   OS_Kill();  // done, OS does not return from a Kill
 } 
