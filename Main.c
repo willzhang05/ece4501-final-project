@@ -33,8 +33,27 @@ int16_t prevx, prevy;	// Previous x and y values of the crosshair
 uint8_t select;  			// joystick push
 uint8_t area[2];
 
+#define HORIZONAL_NUM_BLOCKS 6
+#define VERTICAL_NUM_BLOCKS 6
+#define NUM_CUBES 4
+
+enum Direction {
+	UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3
+};
+
+struct Cube {
+	uint8_t x;
+	uint8_t y;
+	enum Direction dir;
+	uint8_t dead;
+	uint16_t color;
+};
+
+struct Cube cubes[NUM_CUBES];
+
+uint8_t used_blocks[VERTICAL_NUM_BLOCKS][HORIZONAL_NUM_BLOCKS];
+
 unsigned long NumCreated;   		// Number of foreground threads created
-unsigned long NumSamples;   		// Incremented every ADC sample, in Producer
 unsigned long UpdateWork;   		// Incremented every update on position values
 unsigned long Calculation;  		// Incremented every cube number calculation
 unsigned long DisplayCount; 		// Incremented every time the Display thread prints on LCD 
@@ -55,6 +74,191 @@ unsigned short MaxWithI1;
 
 unsigned long Score;
 unsigned long Life;
+
+static uint32_t rand = 17;
+
+uint32_t get_rand() {
+	rand = rand * rand + 67;
+	return rand;
+}
+
+enum Direction get_random_direction() {
+	return (enum Direction)(get_rand() % 4);
+}
+
+Sema4Type NeedCubeRedraw;
+Sema4Type CubeLock;
+
+// Must have CubeLock when calling
+int get_movable_directions(struct Cube *cube, int8_t *dirs) {
+	int total = 0;
+	if (cube->x > 0 && !used_blocks[cube->y][cube->x - 1]) {
+		total += 1;
+		dirs[LEFT] = 1;
+	} else {
+		dirs[LEFT] = 0;
+	}
+	if (cube->x < HORIZONAL_NUM_BLOCKS - 1 && !used_blocks[cube->y][cube->x + 1]) {
+		total += 1;
+		dirs[RIGHT] = 1;
+	} else {
+		dirs[RIGHT] = 0;
+	}
+	if (cube->y > 0 && !used_blocks[cube->y - 1][cube->x]) {
+		total += 1;
+		dirs[UP] = 1;
+	} else {
+		dirs[UP] = 0;
+	}
+	if (cube->y < VERTICAL_NUM_BLOCKS - 1 && !used_blocks[cube->y + 1][cube->x]) {
+		total += 1;
+		dirs[DOWN] = 1;
+	} else {
+		dirs[DOWN] = 0;
+	}
+	return total;
+}
+
+void Fatal(char *msg) {
+	BSP_LCD_DrawString(0,0,"FATAL ERROR:", LCD_RED);
+	BSP_LCD_DrawString(0,1, msg, LCD_RED);
+	while (1);
+}
+
+// Must have CubeLock when calling
+void MoveCube(struct Cube *cube) {
+	int8_t valid_directions[4];
+	int dir_to_move_num;
+	int i;
+	int total_valid_dirs = get_movable_directions(cube, valid_directions);
+	if (!total_valid_dirs) {
+		cube->color = LCD_YELLOW;
+		return;
+	}
+	
+	if (valid_directions[cube->dir]) {
+		cube->color = LCD_WHITE;
+	} else {
+		cube->color = LCD_RED;
+		dir_to_move_num = get_rand() % total_valid_dirs;
+		
+		for (i = 0; i < 4; ++i) {
+			if (!valid_directions[i]) continue;
+			if (--dir_to_move_num < 0) {
+				cube->dir = (enum Direction)i;
+				break;
+			}
+		}
+		if (i == 4) {
+			Fatal("Couldn't find dir");
+		}
+	}
+	
+	used_blocks[cube->y][cube->x] = 0;
+	
+	switch(cube->dir) {
+		case UP:
+			cube->y -= 1;
+			break;
+		case DOWN:
+			cube->y += 1;
+			break;
+		case LEFT:
+			cube->x -= 1;
+			break;
+		case RIGHT:
+			cube->x += 1;
+			break;
+	}
+	
+	used_blocks[cube->y][cube->x] = 1;
+}
+
+void InitCubes(void) {
+	int y, x, i;
+	// initialize data structures
+	for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
+		for (x = 0; x < HORIZONAL_NUM_BLOCKS; ++x) {
+			used_blocks[y][x] = 0; // free
+		}
+	}
+  for (i = 0; i < NUM_CUBES; ++i) {
+		uint8_t x = 0;
+		uint8_t y = 0;
+		do {
+			x = get_rand() % HORIZONAL_NUM_BLOCKS;
+			y = get_rand() % VERTICAL_NUM_BLOCKS;
+		}
+		while (used_blocks[y][x]); // keep picking new coordinates until the position is free
+		used_blocks[y][x] = 1;
+		cubes[i].x = x;
+		cubes[i].y = y;
+		cubes[i].dead = 0;
+		cubes[i].dir = get_random_direction();
+		cubes[i].color = LCD_WHITE;
+	}
+}
+
+static const uint16_t block_width = 18;
+static const uint16_t block_height = 18;
+
+
+// Must hold CubeLock
+void ClearBlocksLCD(void){
+	int i;
+	OS_bWait(&LCDFree);
+	for (i = 0; i < NUM_CUBES; ++i) {
+		int16_t px, py, w, h;
+		if (cubes[i].dead) continue;
+		px = cubes[i].x * block_width;
+		py = cubes[i].y * block_height;
+		w = block_width;
+		h = block_height;
+		BSP_LCD_FillRect(px, py, w, h, LCD_BLACK);
+	}
+	OS_bSignal(&LCDFree);
+}
+
+void InitAndMoveBlocks(void){
+	int i;
+	OS_InitSemaphore(&CubeLock, 1);
+	InitCubes();
+	while (1) {
+		OS_bWait(&CubeLock);
+		ClearBlocksLCD();
+		for (i = 0; i < NUM_CUBES; ++i) {
+			MoveCube(&cubes[i]);
+		}
+		OS_bSignal(&CubeLock);
+		OS_bSignal(&NeedCubeRedraw);
+		OS_Sleep(1000);
+	}
+  OS_Kill();  // done
+}
+
+
+void DrawBlocks(void){
+	while (1) {
+		int i;
+		OS_bWait(&NeedCubeRedraw);
+		OS_bWait(&LCDFree);
+		OS_bWait(&CubeLock);
+		// BSP_LCD_FillRect(0, 0, block_width * HORIZONAL_NUM_BLOCKS, block_height * VERTICAL_NUM_BLOCKS, LCD_BLACK);
+		for (i = 0; i < NUM_CUBES; ++i) {
+			int16_t px, py, w, h;
+			if (cubes[i].dead) continue;
+			px = cubes[i].x * block_width;
+			py = cubes[i].y * block_height;
+			w = block_width;
+			h = block_height;
+			BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
+		}
+		OS_bSignal(&CubeLock);
+		OS_bSignal(&LCDFree);
+		OS_Suspend();
+	}
+  OS_Kill();  // done
+}
 
 void Device_Init(void){
 	UART_Init();
@@ -96,34 +300,31 @@ void Producer(void){
 	unsigned static long LastTime;  // time at previous ADC sample
 	unsigned long thisTime;         // time at current ADC sample
 	long jitter;                    // time between measured and expected, in us
-	if (NumSamples < RUNLENGTH){
-		BSP_Joystick_Input(&rawX,&rawY,&select);
-		thisTime = OS_Time();       // current time, 12.5 ns
-		UpdateWork += UpdatePosition(rawX,rawY,&data); // calculation work
-		NumSamples++;               // number of samples
-		if(JsFifo_Put(data) == 0){ // send to consumer
-			DataLost++;
-		}
-	//calculate jitter
-		if(UpdateWork > 1){    // ignore timing of first interrupt
-			unsigned long diff = OS_TimeDifference(LastTime,thisTime);
-			if(diff > PERIOD){
-				jitter = (diff-PERIOD+4)/8;  // in 0.1 usec
-			}
-			else{
-				jitter = (PERIOD-diff+4)/8;  // in 0.1 usec
-			}
-			if(jitter > MaxJitter){
-				MaxJitter = jitter; // in usec
-			}       // jitter should be 0
-			if(jitter >= JitterSize){
-				jitter = JITTERSIZE-1;
-			}
-			JitterHistogram[jitter]++; 
-		}
-		LastTime = thisTime;
-		OS_Suspend();
+	BSP_Joystick_Input(&rawX,&rawY,&select);
+	thisTime = OS_Time();       // current time, 12.5 ns
+	UpdateWork += UpdatePosition(rawX,rawY,&data); // calculation work
+	if(JsFifo_Put(data) == 0){ // send to consumer
+		DataLost++;
 	}
+//calculate jitter
+	if(UpdateWork > 1){    // ignore timing of first interrupt
+		unsigned long diff = OS_TimeDifference(LastTime,thisTime);
+		if(diff > PERIOD){
+			jitter = (diff-PERIOD+4)/8;  // in 0.1 usec
+		}
+		else{
+			jitter = (PERIOD-diff+4)/8;  // in 0.1 usec
+		}
+		if(jitter > MaxJitter){
+			MaxJitter = jitter; // in usec
+		}       // jitter should be 0
+		if(jitter >= JitterSize){
+			jitter = JITTERSIZE-1;
+		}
+		JitterHistogram[jitter]++; 
+	}
+	LastTime = thisTime;
+	OS_Suspend();
 }
 
 //--------------end of Task 1-----------------------------
@@ -175,6 +376,7 @@ void SW1Push(void){
 
 //--------------end of Task 2-----------------------------
 
+
 //------------------Task 3--------------------------------
 
 //******** Consumer *************** 
@@ -183,9 +385,10 @@ void SW1Push(void){
 // inputs:  none
 // outputs: none
 void Consumer(void){
-	while(NumSamples < RUNLENGTH){
+	while (1) {
 		jsDataType data;
 		JsFifo_Get(&data);
+		OS_bSignal(&NeedCubeRedraw);
 		OS_bWait(&LCDFree);
 			
 		BSP_LCD_DrawCrosshair(prevx, prevy, LCD_BLACK); // Draw a black crosshair
@@ -208,7 +411,6 @@ void Consumer(void){
 // ***********ButtonWork2*************
 void Restart(void){
 	uint32_t StartTime,CurrentTime,ElapsedTime;
-	NumSamples = RUNLENGTH; // first kill the foreground threads
 	OS_Sleep(50); // wait
 	StartTime = OS_MsTime();
 	ElapsedTime = 0;
@@ -221,16 +423,19 @@ void Restart(void){
 		BSP_LCD_DrawString(5,6,"Restarting",LCD_WHITE);
 	}
 	BSP_LCD_FillScreen(BGCOLOR);
-	OS_bSignal(&LCDFree);
+	
 	// restart
 	DataLost = 0;        // lost data between producer and consumer
-  NumSamples = 0;
   UpdateWork = 0;
 	MaxJitter = 0;       // in 1us units
 	Score = 0;
 	Life = 0;
 	x = 63; y = 63;
-	NumCreated += OS_AddThread(&Consumer,128,1); 
+	
+	OS_bSignal(&LCDFree);
+	
+	InitCubes();
+	
   OS_Kill();  // done, OS does not return from a Kill
 } 
 
@@ -264,7 +469,6 @@ int main(void){
 	Device_Init();
   CrossHair_Init();
   DataLost = 0;        // lost data between producer and consumer
-  NumSamples = 0;
   MaxJitter = 0;       // in 1us units
 	Score = 0;
 	Life = 0;
@@ -280,6 +484,8 @@ int main(void){
   NumCreated = 0 ;
 // create initial foreground threads
   NumCreated += OS_AddThread(&Consumer, 128, 1); 
+  NumCreated += OS_AddThread(&InitAndMoveBlocks, 128, 1); 
+  NumCreated += OS_AddThread(&DrawBlocks, 128, 3); 
  
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
