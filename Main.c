@@ -99,12 +99,12 @@ uint32_t get_rand() {
     uint16_t rawX, rawY;  // raw adc value
     uint8_t select;       // prototype-required
     uint32_t joy_rand;
-    // Grab LSBs from joystick raw values
+    // Grab readings from joystick
     BSP_Joystick_Input(&rawX, &rawY, &select);
 
-    // Collate LSB values from low[0-7]
+    // Concatenate x joystick reading with y joystick reading
     joy_rand = (rawX << 16 | rawY);
-	  rand = rand * rand + joy_rand;
+    rand = rand * rand + joy_rand;
     return rand;
 }
 
