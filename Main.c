@@ -821,6 +821,10 @@ void CrossHair_Init(void) {
     BSP_Joystick_Input(&origin[0], &origin[1], &select);
 }
 
+void IdleThread(void) {
+	while (1) OS_Suspend();
+}
+
 
 //******************* Main Function**********
 int main(void) {
@@ -854,6 +858,7 @@ int main(void) {
     NumCreated += OS_AddThread(&Consumer, 128, 1);
     NumCreated += OS_AddThread(&InitAndSyncBlocks, 128, 1);
     NumCreated += OS_AddThread(&DrawBlocks, 128, 3);
+    NumCreated += OS_AddThread(&IdleThread, 128, 6);
 
     OS_Launch(TIME_2MS);  // doesn't return, interrupts enabled in here
     return 0;             // this never executes
