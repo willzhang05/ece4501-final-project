@@ -1,17 +1,16 @@
-//color constants                  red  grn  blu
-#define LCD_BLACK      0x0000   //   0,   0,   0
-#define LCD_BLUE       0x001F   //   0,   0, 255
-#define LCD_DARKBLUE   0x34BF   //  50, 150, 255
-#define LCD_RED        0xF800   // 255,   0,   0
-#define LCD_GREEN      0x07E0   //   0, 255,   0
-#define LCD_LIGHTGREEN 0x07EF   //   0, 255, 120
-#define LCD_ORANGE     0xFD60   // 255, 175,   0
-#define LCD_CYAN       0x07FF   //   0, 255, 255
-#define LCD_MAGENTA    0xF81F   // 255,   0, 255
-#define LCD_YELLOW     0xFFE0   // 255, 255,   0
-#define LCD_WHITE      0xFFFF   // 255, 255, 255
-#define LCD_GREY       0x8410   // 128, 128, 
-
+// color constants                  red  grn  blu
+#define LCD_BLACK 0x0000       //   0,   0,   0
+#define LCD_BLUE 0x001F        //   0,   0, 255
+#define LCD_DARKBLUE 0x34BF    //  50, 150, 255
+#define LCD_RED 0xF800         // 255,   0,   0
+#define LCD_GREEN 0x07E0       //   0, 255,   0
+#define LCD_LIGHTGREEN 0x07EF  //   0, 255, 120
+#define LCD_ORANGE 0xFD60      // 255, 175,   0
+#define LCD_CYAN 0x07FF        //   0, 255, 255
+#define LCD_MAGENTA 0xF81F     // 255,   0, 255
+#define LCD_YELLOW 0xFFE0      // 255, 255,   0
+#define LCD_WHITE 0xFFFF       // 255, 255, 255
+#define LCD_GREY 0x8410        // 128, 128,
 
 // ------------BSP_LCD_Init------------
 // Initialize the SPI and GPIO, which correspond with
@@ -20,7 +19,6 @@
 // Input: none
 // Output: none
 void BSP_LCD_Init(void);
-
 
 //------------BSP_LCD_DrawPixel------------
 // Color the pixel at the given coordinates with the given color.
@@ -35,7 +33,6 @@ void BSP_LCD_Init(void);
 // Output: none
 void BSP_LCD_DrawPixel(int16_t x, int16_t y, uint16_t color);
 
-
 //------------BSP_LCD_DrawFastVLine------------
 // Draw a vertical line at the given coordinates with the given height and color.
 // A vertical line is parallel to the longer side of the rectangular display
@@ -46,7 +43,6 @@ void BSP_LCD_DrawPixel(int16_t x, int16_t y, uint16_t color);
 //        color 16-bit color, which can be produced by BSP_LCD_Color565()
 // Output: none
 void BSP_LCD_DrawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-
 
 //------------BSP_LCD_DrawFastHLine------------
 // Draw a horizontal line at the given coordinates with the given width and color.
@@ -59,7 +55,6 @@ void BSP_LCD_DrawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
 // Output: none
 void BSP_LCD_DrawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 
-
 //------------BSP_LCD_FillScreen------------
 // Fill the screen with the given color.
 // Requires 33,293 bytes of transmission
@@ -67,18 +62,17 @@ void BSP_LCD_DrawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 // Output: none
 void BSP_LCD_FillScreen(uint16_t color);
 
-
 //------------BSP_LCD_FillRect------------
 // Draw a filled rectangle at the given coordinates with the given width, height, and color.
 // Requires (11 + 2*w*h) bytes of transmission (assuming image fully on screen)
-// Input: x     horizontal position of the top left corner of the rectangle, columns from the left edge
+// Input: x     horizontal position of the top left corner of the rectangle, columns from the left
+// edge
 //        y     vertical position of the top left corner of the rectangle, rows from the top edge
 //        w     horizontal width of the rectangle
 //        h     vertical height of the rectangle
 //        color 16-bit color, which can be produced by BSP_LCD_Color565()
 // Output: none
 void BSP_LCD_FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
-
 
 //------------BSP_LCD_Color565------------
 // Pass 8-bit (each) R,G,B and get back 16-bit packed color.
@@ -88,14 +82,12 @@ void BSP_LCD_FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color
 // Output: 16-bit color
 uint16_t BSP_LCD_Color565(uint8_t r, uint8_t g, uint8_t b);
 
-
 //------------BSP_LCD_SwapColor------------
 // Swaps the red and blue values of the given 16-bit packed color;
 // green is unchanged.
 // Input: x 16-bit color in format B, G, R
 // Output: 16-bit color in format R, G, B
 uint16_t BSP_LCD_SwapColor(uint16_t x);
-
 
 //------------BSP_LCD_DrawBitmap------------
 // Displays a 16-bit color BMP image.  A bitmap file that is created
@@ -109,7 +101,8 @@ uint16_t BSP_LCD_SwapColor(uint16_t x);
 // converter program.
 // (x,y) is the screen location of the lower left corner of BMP image
 // Requires (11 + 2*w*h) bytes of transmission (assuming image fully on screen)
-// Input: x     horizontal position of the bottom left corner of the image, columns from the left edge
+// Input: x     horizontal position of the bottom left corner of the image, columns from the left
+// edge
 //        y     vertical position of the bottom left corner of the image, rows from the top edge
 //        image pointer to a 16-bit color BMP image
 //        w     number of pixels wide
@@ -118,7 +111,6 @@ uint16_t BSP_LCD_SwapColor(uint16_t x);
 // Must be less than or equal to 128 pixels wide by 128 pixels high
 void BSP_LCD_DrawBitmap(int16_t x, int16_t y, const uint16_t *image, int16_t w, int16_t h);
 
-
 //------------BSP_LCD_DrawCharS------------
 // Simple character draw function.  This is the same function from
 // Adafruit_GFX.c but adapted for this processor.  However, each call
@@ -126,16 +118,16 @@ void BSP_LCD_DrawBitmap(int16_t x, int16_t y, const uint16_t *image, int16_t w, 
 // many extra data and commands.  If the background color is the same
 // as the text color, no background will be printed, and text can be
 // drawn right over existing images without covering them with a box.
-// Requires (11 + 2*size*size)*6*8 bytes of transmission (image fully on screen; textcolor != bgColor)
-// Input: x         horizontal position of the top left corner of the character, columns from the left edge
-//        y         vertical position of the top left corner of the character, rows from the top edge
-//        c         character to be printed
-//        textColor 16-bit color of the character
-//        bgColor   16-bit color of the background
-//        size      number of pixels per character pixel (e.g. size==2 prints each pixel of font as 2x2 square)
+// Requires (11 + 2*size*size)*6*8 bytes of transmission (image fully on screen; textcolor !=
+// bgColor) Input: x         horizontal position of the top left corner of the character, columns
+// from the left edge
+//        y         vertical position of the top left corner of the character, rows from the top
+//        edge c         character to be printed textColor 16-bit color of the character bgColor
+//        16-bit color of the background size      number of pixels per character pixel (e.g.
+//        size==2 prints each pixel of font as 2x2 square)
 // Output: none
-void BSP_LCD_DrawCharS(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor, uint8_t size);
-
+void BSP_LCD_DrawCharS(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor,
+                       uint8_t size);
 
 //------------BSP_LCD_DrawChar------------
 // Advanced character draw function.  This is similar to the function
@@ -143,15 +135,15 @@ void BSP_LCD_DrawCharS(int16_t x, int16_t y, char c, int16_t textColor, int16_t 
 // function only uses one call to setAddrWindow(), which allows it to
 // run at least twice as fast.
 // Requires (11 + size*size*6*8) bytes of transmission (assuming image fully on screen)
-// Input: x         horizontal position of the top left corner of the character, columns from the left edge
-//        y         vertical position of the top left corner of the character, rows from the top edge
-//        c         character to be printed
-//        textColor 16-bit color of the character
-//        bgColor   16-bit color of the background
-//        size      number of pixels per character pixel (e.g. size==2 prints each pixel of font as 2x2 square)
+// Input: x         horizontal position of the top left corner of the character, columns from the
+// left edge
+//        y         vertical position of the top left corner of the character, rows from the top
+//        edge c         character to be printed textColor 16-bit color of the character bgColor
+//        16-bit color of the background size      number of pixels per character pixel (e.g.
+//        size==2 prints each pixel of font as 2x2 square)
 // Output: none
-void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor, uint8_t size);
-
+void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor,
+                      uint8_t size);
 
 //------------BSP_LCD_DrawString------------
 // String draw function.
@@ -164,7 +156,6 @@ void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t b
 // bgColor is Black and size is 1
 // Output: number of characters printed
 uint32_t BSP_LCD_DrawString(uint16_t x, uint16_t y, char *pt, int16_t textColor);
-
 
 //********BSP_LCD_SetCursor*****************
 // Move the cursor to the desired X- and Y-position.  The
@@ -240,10 +231,9 @@ void BSP_LCD_OutUHex2(uint32_t n, int16_t textColor);
 //        ymin        minimum value to be printed
 // Output: none
 // Assumes: BSP_LCD_Init() has been called
-void BSP_LCD_Drawaxes(uint16_t axisColor, uint16_t bgColor, char *xLabel,
-  char *yLabel1, uint16_t label1Color, char *yLabel2, uint16_t label2Color,
-  int32_t ymax, int32_t ymin);
-
+void BSP_LCD_Drawaxes(uint16_t axisColor, uint16_t bgColor, char *xLabel, char *yLabel1,
+                      uint16_t label1Color, char *yLabel2, uint16_t label2Color, int32_t ymax,
+                      int32_t ymin);
 
 // ------------BSP_LCD_PlotPoint------------
 // Plot a point on the chart.  To plot several points in the
@@ -256,7 +246,6 @@ void BSP_LCD_Drawaxes(uint16_t axisColor, uint16_t bgColor, char *xLabel,
 // Output: none
 // Assumes: BSP_LCD_Init() and BSP_LCD_Drawaxes() have been called
 void BSP_LCD_PlotPoint(int32_t data1, uint16_t color1);
-
 
 // ------------BSP_LCD_PlotIncrement------------
 // Increment the plot between subsequent calls to
@@ -276,8 +265,7 @@ void BSP_LCD_PlotIncrement(void);
 // 					string	pointer to NULL-terminated ASCII string
 //  				value		16-bit number in unsigned decimal format
 // outputs: none
-void BSP_LCD_Message (int device, int line, int col, char *string, unsigned int value);
-
+void BSP_LCD_Message(int device, int line, int col, char *string, unsigned int value);
 
 // Initial LCD in OS
 void BSP_LCD_OutputInit(void);

@@ -30,12 +30,12 @@
 #define _UARTH_
 
 // standard ASCII symbols
-#define CR   0x0D
-#define LF   0x0A
-#define BS   0x08
-#define ESC  0x1B
-#define SP   0x20
-#define DEL  0x7F
+#define CR 0x0D
+#define LF 0x0A
+#define BS 0x08
+#define ESC 0x1B
+#define SP 0x20
+#define DEL 0x7F
 
 //------------UART_Init------------
 // Initialize the UART for 115,200 baud rate (assuming 50 MHz clock),

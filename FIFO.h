@@ -28,18 +28,18 @@
 #ifndef __FIFO_H__
 #define __FIFO_H__
 
-long StartCritical (void);    // previous I bit, disable interrupts
-void EndCritical(long sr);    // restore I bit to previous value
+long StartCritical(void);   // previous I bit, disable interrupts
+void EndCritical(long sr);  // restore I bit to previous value
 
 // Two-pointer implementation of the receive FIFO
 // can hold 0 to RXFIFOSIZE-1 elements
-#define JSFIFOSIZE 16 // can be any size
+#define JSFIFOSIZE 16  // can be any size
 #define JSFIFOSUCCESS 1
-#define JSFIFOFAIL    0
+#define JSFIFOFAIL 0
 
 typedef struct {
-	uint16_t x,y;
-}  jsDataType;
+    uint16_t x, y;
+} jsDataType;
 
 // initialize pointer FIFO
 void JsFifo_Init(void);
@@ -53,4 +53,4 @@ int JsFifo_Get(jsDataType *datapt);
 // 0 to RXFIFOSIZE-1
 uint32_t JsFifo_Size(void);
 
-#endif //  __FIFO_H__
+#endif  //  __FIFO_H__

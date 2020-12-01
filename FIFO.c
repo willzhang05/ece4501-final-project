@@ -1,7 +1,7 @@
 // FIFO.c
 // Runs on any Cortex microcontroller
 // Provide functions that initialize a FIFO, put data in, get data out,
-// and return the current size. 
+// and return the current size.
 
 /* This example accompanies the book
    "Embedded Systems: Real Time Interfacing to ARM Cortex M Microcontrollers",
@@ -27,51 +27,52 @@
 // Two-pointer implementation of the receive FIFO
 // can hold 0 to RXFIFOSIZE-1 elements
 
-jsDataType volatile *JsPutPt; // put next
-jsDataType volatile *JsGetPt; // get next
+jsDataType volatile *JsPutPt;  // put next
+jsDataType volatile *JsGetPt;  // get next
 jsDataType static JsFifo[JSFIFOSIZE];
 Sema4Type JsFifoAvailable;
 
 // initialize pointer FIFO
-void JsFifo_Init(void){ long sr;
-  sr = StartCritical();      // make atomic
-	OS_InitSemaphore(&JsFifoAvailable, 0);
-  JsPutPt = JsGetPt = &JsFifo[0]; // Empty
-  EndCritical(sr);
+void JsFifo_Init(void) {
+    long sr;
+    sr = StartCritical();  // make atomic
+    OS_InitSemaphore(&JsFifoAvailable, 0);
+    JsPutPt = JsGetPt = &JsFifo[0];  // Empty
+    EndCritical(sr);
 }
 // add element to end of pointer FIFO
 // return RXFIFOSUCCESS if successful
-int JsFifo_Put(jsDataType data){
-  jsDataType volatile *nextPutPt;
-  nextPutPt = JsPutPt+1;
-  if(nextPutPt == &JsFifo[JSFIFOSIZE]){
-    nextPutPt = &JsFifo[0];  // wrap
-  }
-  if(nextPutPt == JsGetPt){
-    return(JSFIFOFAIL);      // Failed, fifo full
-  }
-  else{
-    *(JsPutPt) = data;       // Put
-    JsPutPt = nextPutPt;     // Success, update
-		OS_Signal(&JsFifoAvailable);
-    return(JSFIFOSUCCESS);
-  }
+int JsFifo_Put(jsDataType data) {
+    jsDataType volatile *nextPutPt;
+    nextPutPt = JsPutPt + 1;
+    if (nextPutPt == &JsFifo[JSFIFOSIZE]) {
+        nextPutPt = &JsFifo[0];  // wrap
+    }
+    if (nextPutPt == JsGetPt) {
+        return (JSFIFOFAIL);  // Failed, fifo full
+    } else {
+        *(JsPutPt) = data;    // Put
+        JsPutPt = nextPutPt;  // Success, update
+        OS_Signal(&JsFifoAvailable);
+        return (JSFIFOSUCCESS);
+    }
 }
 // remove element from front of pointer FIFO
 // return RXFIFOSUCCESS if successful
-int JsFifo_Get(jsDataType *datapt){
-  OS_Wait(&JsFifoAvailable);
-  *datapt = *(JsGetPt++);
-  if(JsGetPt == &JsFifo[JSFIFOSIZE]){
-     JsGetPt = &JsFifo[0];   // wrap
-  }
-  return(JSFIFOSUCCESS);
+int JsFifo_Get(jsDataType *datapt) {
+    OS_Wait(&JsFifoAvailable);
+    *datapt = *(JsGetPt++);
+    if (JsGetPt == &JsFifo[JSFIFOSIZE]) {
+        JsGetPt = &JsFifo[0];  // wrap
+    }
+    return (JSFIFOSUCCESS);
 }
 // number of elements in pointer FIFO
 // 0 to RXFIFOSIZE-1
-uint32_t JsFifo_Size(void){
-  if(JsPutPt < JsGetPt){
-    return ((uint32_t)(JsPutPt-JsGetPt+(JSFIFOSIZE*sizeof(jsDataType)))/sizeof(jsDataType));
-  }
-  return ((uint32_t)(JsPutPt-JsGetPt)/sizeof(jsDataType));
+uint32_t JsFifo_Size(void) {
+    if (JsPutPt < JsGetPt) {
+        return ((uint32_t)(JsPutPt - JsGetPt + (JSFIFOSIZE * sizeof(jsDataType))) /
+                sizeof(jsDataType));
+    }
+    return ((uint32_t)(JsPutPt - JsGetPt) / sizeof(jsDataType));
 }

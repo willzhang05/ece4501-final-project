@@ -1,8 +1,8 @@
 #ifndef UART_FIFO_H
 #define UART_FIFO_H
 
-long StartCritical (void);    // previous I bit, disable interrupts
-void EndCritical(long sr);    // restore I bit to previous value
+long StartCritical(void);   // previous I bit, disable interrupts
+void EndCritical(long sr);  // restore I bit to previous value
 
 typedef char tx_UARTDataType;
 typedef char rx_UARTDataType;
