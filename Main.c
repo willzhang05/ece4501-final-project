@@ -453,8 +453,8 @@ int CheckBlockIntersection(x, y) {
     for (i = 0; i < NUM_CUBES; ++i) {
         px = cubes[i].x * block_width;
         py = cubes[i].y * block_height;
-        if (x + 4 < px && x - 4 > px + block_width) {
-            if (y + 4 < py && y - 4 > py + block_width) {
+        if (x + 4 >= px && x - 4 <= px + block_width) {
+            if (y + 4 >= py && y - 4 <= py + block_width) {
                 KillCube(i);
                 OS_bWait(&InfoSem);
                 Score += 1;
