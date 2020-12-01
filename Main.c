@@ -39,6 +39,8 @@ uint8_t area[2];
 #define VERTICAL_NUM_BLOCKS 6
 #define NUM_CUBES 5
 
+// #define DEBUG_CUBE_COLOR
+
 // #define DEBUG
 // #define DEBUG_V
 
@@ -205,15 +207,21 @@ void MoveCube(struct Cube *cube) {
     status = StartCritical();
     total_valid_dirs = get_movable_directions(cube, valid_directions);
     if (!total_valid_dirs) {
+			  #ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_YELLOW;
+			  #endif
         EndCritical(status);
         return;
     }
 
     if (valid_directions[cube->dir]) {
+			  #ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_WHITE;
+			  #endif
     } else {
+			  #ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_RED;
+			  #endif
         dir_to_move_num = get_rand() % total_valid_dirs;
 
         for (i = 0; i < 4; ++i) {
@@ -281,6 +289,12 @@ void MoveCubeThread(struct Cube *cube) {
 					OS_Suspend();
 				}
 				if (reinit || CheckRestarting()) break;
+				OS_bWait(&cube->sem);
+				if (cube->dead) {
+				  OS_bSignal(&cube->sem);
+					break;
+				}
+				OS_bSignal(&cube->sem);
         OS_Wait(&MoveCubesSem);
 				if (reinit || CheckRestarting()) break;
 				OS_bWait(&cube->sem);
