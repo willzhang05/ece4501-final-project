@@ -219,14 +219,17 @@ void MoveCube(struct Cube *cube) {
 
 #define MAX_CUBE_LIFETIME 10
 
+static int run_once = 0;
 void InitCubes(int num_cubes) {
     int y, x, i;
     // initialize data structures
     for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
         for (x = 0; x < HORIZONAL_NUM_BLOCKS; ++x) {
+					  // if (run_once && blocks[y][x].Value != 1) Fatal("Sema not 1", "");
             OS_InitSemaphore(&blocks[y][x], 1);
         }
     }
+		run_once++;
 #ifdef DEBUG
     BSP_LCD_Message(0, 2, 0, "Making cubes: ", num_cubes);
 #endif
@@ -257,6 +260,11 @@ void InitCubes(int num_cubes) {
     }
 }
 
+void KillCube(struct Cube *cube) {
+    cube->dead = 1;
+    OS_bSignal(&blocks[cube->y][cube->x]);
+}
+
 void InitAndMoveBlocks(void) {
     int i;
     InitCubes(NUM_CUBES);
@@ -266,8 +274,7 @@ void InitAndMoveBlocks(void) {
         for (i = 0; i < NUM_CUBES; ++i) {
             if (cubes[i].dead) continue;
             if (cubes[i].life == 0) {
-                cubes[i].dead = 1;
-                OS_bSignal(&blocks[cubes[i].y][cubes[i].x]);
+							  KillCube(&cubes[i]);
                 OS_bWait(&InfoSem);
                 Life -= 1;
                 OS_bSignal(&InfoSem);
