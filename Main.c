@@ -35,7 +35,7 @@ uint8_t area[2];
 
 #define HORIZONAL_NUM_BLOCKS 6
 #define VERTICAL_NUM_BLOCKS 6
-#define NUM_CUBES 4
+#define NUM_CUBES 2
 
 // #define DEBUG
 
@@ -54,7 +54,7 @@ struct Cube {
 
 struct Cube cubes[NUM_CUBES];
 
-uint8_t used_blocks[VERTICAL_NUM_BLOCKS][HORIZONAL_NUM_BLOCKS];
+Sema4Type blocks[VERTICAL_NUM_BLOCKS][HORIZONAL_NUM_BLOCKS];
 
 unsigned long NumCreated;   		// Number of foreground threads created
 unsigned long UpdateWork;   		// Incremented every update on position values
@@ -90,30 +90,32 @@ enum Direction get_random_direction() {
 }
 
 Sema4Type NeedCubeRedraw;
-Sema4Type CubeLock;
+Sema4Type MoveCubesSem;
+Sema4Type DoneMovingCubesSem;
+Sema4Type ThrottleSem;
 
 // Must have CubeLock when calling
 int get_movable_directions(struct Cube *cube, int8_t *dirs) {
 	int total = 0;
-	if (cube->x > 0 && !used_blocks[cube->y][cube->x - 1]) {
+	if (cube->x > 0 && blocks[cube->y][cube->x - 1].Value) {
 		total += 1;
 		dirs[LEFT] = 1;
 	} else {
 		dirs[LEFT] = 0;
 	}
-	if (cube->x < HORIZONAL_NUM_BLOCKS - 1 && !used_blocks[cube->y][cube->x + 1]) {
+	if (cube->x < HORIZONAL_NUM_BLOCKS - 1 && blocks[cube->y][cube->x + 1].Value) {
 		total += 1;
 		dirs[RIGHT] = 1;
 	} else {
 		dirs[RIGHT] = 0;
 	}
-	if (cube->y > 0 && !used_blocks[cube->y - 1][cube->x]) {
+	if (cube->y > 0 && blocks[cube->y - 1][cube->x].Value) {
 		total += 1;
 		dirs[UP] = 1;
 	} else {
 		dirs[UP] = 0;
 	}
-	if (cube->y < VERTICAL_NUM_BLOCKS - 1 && !used_blocks[cube->y + 1][cube->x]) {
+	if (cube->y < VERTICAL_NUM_BLOCKS - 1 && blocks[cube->y + 1][cube->x].Value) {
 		total += 1;
 		dirs[DOWN] = 1;
 	} else {
@@ -129,14 +131,33 @@ void Fatal(char *msg, char *msg2) {
 	while (1);
 }
 
-// Must have CubeLock when calling
+static const uint16_t block_width = 18;
+static const uint16_t block_height = 18;
+
+
+void ClearBlockLCD(struct Cube *cube){
+	int16_t px, py, w, h;
+	OS_bWait(&LCDFree);
+	if (cube->dead) return;
+	px = cube->x * block_width;
+	py = cube->y * block_height;
+	w = block_width;
+	h = block_height;
+	BSP_LCD_FillRect(px, py, w, h, LCD_BLACK);
+	OS_bSignal(&LCDFree);
+}
+
 void MoveCube(struct Cube *cube) {
 	int8_t valid_directions[4];
 	int dir_to_move_num;
+	int new_x, new_y;
 	int i;
-	int total_valid_dirs = get_movable_directions(cube, valid_directions);
+	int total_valid_dirs;
+	int32_t status = StartCritical();
+	total_valid_dirs = get_movable_directions(cube, valid_directions);
 	if (!total_valid_dirs) {
 		cube->color = LCD_YELLOW;
+	  EndCritical(status);
 		return;
 	}
 	
@@ -158,24 +179,29 @@ void MoveCube(struct Cube *cube) {
 		}
 	}
 	
-	used_blocks[cube->y][cube->x] = 0;
+	new_x = cube->x;
+	new_y = cube->y;
 	
 	switch(cube->dir) {
 		case UP:
-			cube->y -= 1;
+		  new_y -= 1;
 			break;
 		case DOWN:
-			cube->y += 1;
+			new_y += 1;
 			break;
 		case LEFT:
-			cube->x -= 1;
+			new_x -= 1;
 			break;
 		case RIGHT:
-			cube->x += 1;
+			new_x += 1;
 			break;
 	}
-	
-	used_blocks[cube->y][cube->x] = 1;
+	OS_bWait(&blocks[new_y][new_x]); // this should never block
+	OS_bSignal(&blocks[cube->y][cube->x]);
+	EndCritical(status);
+	// ClearBlockLCD(cube);
+	cube->y = new_y;
+	cube->x = new_x;
 }
 
 #define MAX_CUBE_LIFETIME 10
@@ -185,7 +211,7 @@ void InitCubes(int num_cubes) {
 	// initialize data structures
 	for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
 		for (x = 0; x < HORIZONAL_NUM_BLOCKS; ++x) {
-			used_blocks[y][x] = 0; // free
+			OS_InitSemaphore(&blocks[y][x], 1);
 		}
 	}
 	#ifdef DEBUG
@@ -206,8 +232,8 @@ void InitCubes(int num_cubes) {
 			#endif
 			if (attempt++ > 5) { Fatal("Ran out of attempts", "RNG is broken"); }
 		}
-		while (used_blocks[y][x]); // keep picking new coordinates until the position is free
-		used_blocks[y][x] = 1;
+		while (!blocks[y][x].Value); // keep picking new coordinates until the position is free
+		OS_bWait(&blocks[y][x]);
 		cubes[i].x = x;
 		cubes[i].y = y;
 		cubes[i].dead = 0;
@@ -217,48 +243,30 @@ void InitCubes(int num_cubes) {
 	}
 }
 
-static const uint16_t block_width = 18;
-static const uint16_t block_height = 18;
-
-
-// Must hold CubeLock
-void ClearBlocksLCD(void){
-	int i;
-	OS_bWait(&LCDFree);
-	for (i = 0; i < NUM_CUBES; ++i) {
-		int16_t px, py, w, h;
-		if (cubes[i].dead) continue;
-		px = cubes[i].x * block_width;
-		py = cubes[i].y * block_height;
-		w = block_width;
-		h = block_height;
-		BSP_LCD_FillRect(px, py, w, h, LCD_BLACK);
-	}
-	OS_bSignal(&LCDFree);
-}
 
 void InitAndMoveBlocks(void){
 	int i;
-	OS_InitSemaphore(&CubeLock, 0);
 	InitCubes(NUM_CUBES);
 	while (1) {
 		int num_alive = 0;
 		for (i = 0; i < NUM_CUBES; ++i) {
-			if (cubes[i].dead) continue;
-			MoveCube(&cubes[i]);
+			OS_Signal(&MoveCubesSem);
 		}
-		OS_bSignal(&CubeLock);
+		for (i = 0; i < NUM_CUBES; ++i) {
+			OS_Wait(&DoneMovingCubesSem);
+		}
+		for (i = 0; i < NUM_CUBES; ++i) {
+			OS_Signal(&ThrottleSem);
+		}
+		
 		OS_bSignal(&NeedCubeRedraw);
 		OS_Sleep(1000);
-		OS_bWait(&CubeLock);
 		for (i = 0; i < NUM_CUBES; ++i) {
 			if (cubes[i].dead) continue;
-			cubes[i].life--;
 			num_alive++;
 		}
-		ClearBlocksLCD();
 		if (!num_alive) {
-			InitCubes(1 + (get_rand() % 5));
+			InitCubes(1 + (get_rand() % 4));
 		}
 		for (i = 0; i < NUM_CUBES; ++i) {
 			if (cubes[i].dead) continue;
@@ -276,7 +284,6 @@ void DrawBlocks(void){
 		int i;
 		OS_bWait(&NeedCubeRedraw);
 		OS_bWait(&LCDFree);
-		OS_bWait(&CubeLock);
 		// BSP_LCD_FillRect(0, 0, block_width * HORIZONAL_NUM_BLOCKS, block_height * VERTICAL_NUM_BLOCKS, LCD_BLACK);
 		for (i = 0; i < NUM_CUBES; ++i) {
 			int16_t px, py, w, h;
@@ -287,7 +294,6 @@ void DrawBlocks(void){
 			h = block_height;
 			BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
 		}
-		OS_bSignal(&CubeLock);
 		OS_bSignal(&LCDFree);
 		OS_Suspend();
 	}
@@ -497,6 +503,38 @@ void CrossHair_Init(void){
 	BSP_Joystick_Input(&origin[0],&origin[1],&select);
 }
 
+void MoveCubeThread(struct Cube *cube) {
+	while(1) {
+		OS_Wait(&MoveCubesSem);
+	  ClearBlockLCD(cube);
+		MoveCube(cube);
+		cube->life--;
+		OS_Signal(&DoneMovingCubesSem);
+		OS_Wait(&ThrottleSem);
+	}
+}
+
+void MoveCube0(void) {
+	struct Cube *cube = &cubes[0];
+	MoveCubeThread(cube);
+}
+void MoveCube1(void) {
+	struct Cube *cube = &cubes[1];
+	MoveCubeThread(cube);
+}
+void MoveCube2(void) {
+	struct Cube *cube = &cubes[2];
+	MoveCubeThread(cube);
+}
+void MoveCube3(void) {
+	struct Cube *cube = &cubes[3];
+	MoveCubeThread(cube);
+}
+void MoveCube4(void) {
+	struct Cube *cube = &cubes[4];
+	MoveCubeThread(cube);
+}
+
 //******************* Main Function**********
 int main(void){ 
   OS_Init();           // initialize, disable interrupts
@@ -515,11 +553,20 @@ int main(void){
 	OS_AddSW2Task(&SW2Push, 4);
   OS_AddPeriodicThread(&Producer, PERIOD, 3); // 2 kHz real time sampling of PD3
 	
+	OS_InitSemaphore(&MoveCubesSem, 0);
+	OS_InitSemaphore(&DoneMovingCubesSem, 0);
+	OS_InitSemaphore(&ThrottleSem, 0);
+	
   NumCreated = 0 ;
 // create initial foreground threads
   NumCreated += OS_AddThread(&Consumer, 128, 1); 
   NumCreated += OS_AddThread(&InitAndMoveBlocks, 128, 1); 
   NumCreated += OS_AddThread(&DrawBlocks, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube0, 128, 3); 
+  NumCreated += OS_AddThread(&MoveCube1, 128, 3); 
+  //NumCreated += OS_AddThread(&MoveCube2, 128, 3); 
+  //NumCreated += OS_AddThread(&MoveCube3, 128, 3); 
+  //NumCreated += OS_AddThread(&MoveCube4, 128, 3); 
  
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
