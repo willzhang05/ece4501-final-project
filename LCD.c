@@ -310,7 +310,14 @@ void parrotdelay(uint32_t ulCount) {
 
 #else
 // Keil uVision Code
-__asm void parrotdelay(uint32_t ulCount) { subs r0, #1 bne parrotdelay bx lr }
+__asm void
+parrotdelay(uint32_t ulCount)
+{
+    subs    r0, #1
+    bne     parrotdelay
+    bx      lr
+}
+
 
 #endif
 
