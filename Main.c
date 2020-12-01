@@ -268,15 +268,18 @@ void KillCube(struct Cube *cube) {
 // kills threads for cubes the crosshair intersects with and increments the score
 // inputs: x and y position of the crosshair
 // outputs: number of cubes that the crosshair is intersecting with
-int CheckBlockIntersection(x, y) {
+int CheckBlockIntersection() {
     int i;
     int px, py;
     int intersect = 0;
+    OS_bWait(&CubeDrawing);
     for (i = 0; i < NUM_CUBES; ++i) {
+        if (cubes[i].dead) continue;
         px = cubes[i].x * block_width;
         py = cubes[i].y * block_height;
         if (x + 4 >= px && x - 4 <= px + block_width) {
-            if (y + 4 >= py && y - 4 <= py + block_width) {
+            if (y + 4 >= py && y - 4 <= py + block_height) {
+							  ClearBlockLCD(&cubes[i]);
                 KillCube(&cubes[i]);
                 OS_bWait(&InfoSem);
                 Score += 1;
@@ -285,6 +288,7 @@ int CheckBlockIntersection(x, y) {
             }
         }
     }
+    OS_bSignal(&CubeDrawing);
     return intersect;
 }
 
@@ -485,6 +489,7 @@ void Consumer(void) {
     while (CheckLife() > 0) {
         jsDataType data;
         JsFifo_Get(&data);
+        CheckBlockIntersection();
         OS_bSignal(&NeedCubeRedraw);
         OS_bWait(&LCDFree);
 
