@@ -443,6 +443,28 @@ void SW1Push(void) {
 }
 
 //--------------end of Task 2-----------------------------
+// kills threads for cubes the crosshair intersects with and increments the score
+// inputs: x and y position of the crosshair
+// outputs: number of cubes that the crosshair is intersecting with
+int CheckBlockIntersection(x, y) {
+    int i;
+    int px, py;
+    int intersect = 0;
+    for (i = 0; i < NUM_CUBES; ++i) {
+        px = cubes[i].x * block_width;
+        py = cubes[i].y * block_height;
+        if (x + 4 < px && x - 4 > px + block_width) {
+            if (y + 4 < py && y - 4 > py + block_width) {
+                KillCube(i);
+                OS_bWait(&InfoSem);
+                Score += 1;
+                OS_bSignal(&InfoSem);
+                ++intersect;
+            }
+        }
+    }
+    return intersect;
+}
 
 //------------------Task 3--------------------------------
 
