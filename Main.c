@@ -86,7 +86,7 @@ unsigned short MaxWithI1;
 unsigned long Score;
 unsigned long Life;
 
-static uint32_t rand = 21269;
+// static uint32_t rand = 21269;
 
 /*uint32_t get_rand() {
     rand = rand * rand + rand / 2;
