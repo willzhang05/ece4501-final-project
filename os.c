@@ -51,10 +51,10 @@ void (*ButtonTwoTask)(void);
 
 // Macros
 //#define blockSema								// Blocking
-//sempahores #define prioritySched						// Fixed priority
-//scheduler
-//#define aging										// Dynamic priority
-//scheculer with aging
+// sempahores #define prioritySched						// Fixed priority
+// scheduler
+//#define aging										// Dynamic
+//priority scheculer with aging
 
 // TCB Data Structure
 struct tcb {

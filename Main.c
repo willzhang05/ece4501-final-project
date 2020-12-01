@@ -225,11 +225,11 @@ void InitCubes(int num_cubes) {
     // initialize data structures
     for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
         for (x = 0; x < HORIZONAL_NUM_BLOCKS; ++x) {
-					  // if (run_once && blocks[y][x].Value != 1) Fatal("Sema not 1", "");
+            // if (run_once && blocks[y][x].Value != 1) Fatal("Sema not 1", "");
             OS_InitSemaphore(&blocks[y][x], 1);
         }
     }
-		run_once++;
+    run_once++;
 #ifdef DEBUG
     BSP_LCD_Message(0, 2, 0, "Making cubes: ", num_cubes);
 #endif
@@ -265,6 +265,29 @@ void KillCube(struct Cube *cube) {
     OS_bSignal(&blocks[cube->y][cube->x]);
 }
 
+// kills threads for cubes the crosshair intersects with and increments the score
+// inputs: x and y position of the crosshair
+// outputs: number of cubes that the crosshair is intersecting with
+int CheckBlockIntersection(x, y) {
+    int i;
+    int px, py;
+    int intersect = 0;
+    for (i = 0; i < NUM_CUBES; ++i) {
+        px = cubes[i].x * block_width;
+        py = cubes[i].y * block_height;
+        if (x + 4 >= px && x - 4 <= px + block_width) {
+            if (y + 4 >= py && y - 4 <= py + block_width) {
+                KillCube(&cubes[i]);
+                OS_bWait(&InfoSem);
+                Score += 1;
+                OS_bSignal(&InfoSem);
+                ++intersect;
+            }
+        }
+    }
+    return intersect;
+}
+
 void InitAndMoveBlocks(void) {
     int i;
     InitCubes(NUM_CUBES);
@@ -274,7 +297,7 @@ void InitAndMoveBlocks(void) {
         for (i = 0; i < NUM_CUBES; ++i) {
             if (cubes[i].dead) continue;
             if (cubes[i].life == 0) {
-							  KillCube(&cubes[i]);
+                KillCube(&cubes[i]);
                 OS_bWait(&InfoSem);
                 Life -= 1;
                 OS_bSignal(&InfoSem);
@@ -450,28 +473,6 @@ void SW1Push(void) {
 }
 
 //--------------end of Task 2-----------------------------
-// kills threads for cubes the crosshair intersects with and increments the score
-// inputs: x and y position of the crosshair
-// outputs: number of cubes that the crosshair is intersecting with
-int CheckBlockIntersection(x, y) {
-    int i;
-    int px, py;
-    int intersect = 0;
-    for (i = 0; i < NUM_CUBES; ++i) {
-        px = cubes[i].x * block_width;
-        py = cubes[i].y * block_height;
-        if (x + 4 >= px && x - 4 <= px + block_width) {
-            if (y + 4 >= py && y - 4 <= py + block_width) {
-                KillCube(i);
-                OS_bWait(&InfoSem);
-                Score += 1;
-                OS_bSignal(&InfoSem);
-                ++intersect;
-            }
-        }
-    }
-    return intersect;
-}
 
 //------------------Task 3--------------------------------
 
