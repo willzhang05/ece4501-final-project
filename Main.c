@@ -494,6 +494,7 @@ void InitAndSyncBlocks(void) {
             num_alive++;
         }
         if (!num_alive) {
+					  OS_Sleep(500);
 	          OS_bWait(&ResSem); // do not allow a restart right now
 					  #ifdef DEBUG_V
 					  BSP_LCD_DrawString(0, 0, "About to reinitialize", LCD_WHITE);
