@@ -97,6 +97,7 @@ Sema4Type DoneMovingCubesSem;
 Sema4Type ThrottleSem;
 Sema4Type CubeDrawing;
 Sema4Type InfoSem;
+Sema4Type DoneSem;
 
 int CheckLife(void) {
     int res;
@@ -350,6 +351,10 @@ void InitAndMoveBlocks(void) {
         }
         OS_bSignal(&CubeDrawing);
     }
+		#ifdef DEBUG
+		BSP_LCD_DrawString(0, 9, "MoveBlocks exiting", LCD_WHITE);
+		#endif
+		OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -374,6 +379,10 @@ void DrawBlocks(void) {
         OS_bSignal(&CubeDrawing);
         OS_Suspend();
     }
+		#ifdef DEBUG
+		BSP_LCD_DrawString(0, 10, "DrawBlocks exiting", LCD_WHITE);
+		#endif
+		OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -521,6 +530,10 @@ void Consumer(void) {
         prevy = data.y;
         OS_Suspend();
     }
+		#ifdef DEBUG
+		BSP_LCD_DrawString(0, 11, "Consumer exiting", LCD_WHITE);
+		#endif
+		OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -532,6 +545,7 @@ void MoveCubeThread(struct Cube *cube) {
         OS_Signal(&DoneMovingCubesSem);
         OS_Wait(&ThrottleSem);
     }
+		OS_Signal(&DoneSem);
 		OS_Kill();
 }
 
@@ -561,7 +575,7 @@ void MoveCube4(void) {
 // one foreground task created with button push
 // ***********ButtonWork2*************
 void Restart(void) {
-    uint32_t StartTime, CurrentTime, ElapsedTime;
+    uint32_t StartTime, CurrentTime, ElapsedTime, i;
 	  OS_bWait(&ResSem);
 	  if (restarting) {
 		  OS_bSignal(&ResSem);
@@ -574,16 +588,35 @@ void Restart(void) {
 	  OS_bWait(&InfoSem);
 	  Life = 0; // Kill
 	  OS_bSignal(&InfoSem);
+	  OS_bSignal(&NeedCubeRedraw);
     StartTime = OS_MsTime();
     ElapsedTime = 0;
     OS_bWait(&LCDFree);
     Button2RespTime = OS_MsTime() - Button2PushTime;  // Response on LCD here
     BSP_LCD_FillScreen(BGCOLOR);
-    while (ElapsedTime < 1500) {
+    while (ElapsedTime < 500) {
         CurrentTime = OS_MsTime();
         ElapsedTime = CurrentTime - StartTime;
         BSP_LCD_DrawString(5, 6, "Restarting", LCD_WHITE);
     }
+		for (i = 0; i < NUM_CUBES; ++i) {
+      OS_Signal(&MoveCubesSem);
+      OS_Signal(&ThrottleSem);
+		}
+		OS_bSignal(&LCDFree);
+		#ifdef DEBUG
+		for (i = 0; i < NUM_CUBES + 3; ++i) {
+      BSP_LCD_Message(0, i, 0, "Check", i);
+			OS_Wait(&DoneSem);
+      BSP_LCD_DrawString(10, i, "Done", LCD_GREEN);
+    }
+		BSP_LCD_DrawString(0, 0, "Restarting!!", LCD_RED);
+		#else
+		for (i = 0; i < NUM_CUBES + 3; ++i) {
+			OS_Wait(&DoneSem);
+    }
+		#endif
+    OS_bWait(&LCDFree);
     BSP_LCD_FillScreen(BGCOLOR);
 
     // restart
@@ -594,7 +627,7 @@ void Restart(void) {
     Life = DEFAULT_LIFE;
     x = 63;
     y = 63;
-
+		
     OS_bSignal(&LCDFree);
 
     OS_InitSemaphore(&MoveCubesSem, 0);
@@ -670,6 +703,7 @@ int main(void) {
     OS_InitSemaphore(&NeedCubeRedraw, 0);
     OS_InitSemaphore(&InfoSem, 1);
     OS_InitSemaphore(&ResSem, 1);
+    OS_InitSemaphore(&DoneSem, 0);
 
     NumCreated = 0;
     // create initial foreground threads
