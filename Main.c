@@ -35,7 +35,7 @@ uint8_t area[2];
 
 #define HORIZONAL_NUM_BLOCKS 6
 #define VERTICAL_NUM_BLOCKS 6
-#define NUM_CUBES 2
+#define NUM_CUBES 1
 
 // #define DEBUG
 
@@ -93,6 +93,7 @@ Sema4Type NeedCubeRedraw;
 Sema4Type MoveCubesSem;
 Sema4Type DoneMovingCubesSem;
 Sema4Type ThrottleSem;
+Sema4Type CubeDrawing;
 
 // Must have CubeLock when calling
 int get_movable_directions(struct Cube *cube, int8_t *dirs) {
@@ -138,7 +139,7 @@ static const uint16_t block_height = 18;
 void ClearBlockLCD(struct Cube *cube){
 	int16_t px, py, w, h;
 	OS_bWait(&LCDFree);
-	if (cube->dead) return;
+	if (cube->dead) Fatal("Called ClearBlockLCD", "on dead block");
 	px = cube->x * block_width;
 	py = cube->y * block_height;
 	w = block_width;
@@ -153,7 +154,9 @@ void MoveCube(struct Cube *cube) {
 	int new_x, new_y;
 	int i;
 	int total_valid_dirs;
-	int32_t status = StartCritical();
+	int32_t status;
+	if (cube->dead) return;
+	status = StartCritical();
 	total_valid_dirs = get_movable_directions(cube, valid_directions);
 	if (!total_valid_dirs) {
 		cube->color = LCD_YELLOW;
@@ -238,7 +241,7 @@ void InitCubes(int num_cubes) {
 		cubes[i].y = y;
 		cubes[i].dead = 0;
 		cubes[i].dir = get_random_direction();
-		cubes[i].color = LCD_WHITE;
+		cubes[i].color = LCD_BLUE;
 		cubes[i].life = 1 + (get_rand() % (MAX_CUBE_LIFETIME - 1));
 	}
 }
@@ -247,8 +250,25 @@ void InitCubes(int num_cubes) {
 void InitAndMoveBlocks(void){
 	int i;
 	InitCubes(NUM_CUBES);
+	OS_bSignal(&CubeDrawing);
 	while (1) {
 		int num_alive = 0;
+		for (i = 0; i < NUM_CUBES; ++i) {
+			if (cubes[i].dead) continue;
+			if (cubes[i].life == 0) {
+				cubes[i].dead = 1;
+			}
+		}
+		OS_bSignal(&NeedCubeRedraw);
+		OS_Sleep(1000);
+		
+		OS_bWait(&CubeDrawing);
+		for (i = 0; i < NUM_CUBES; ++i) {
+			if (cubes[i].dead) continue;
+	    ClearBlockLCD(&cubes[i]);
+		}
+		
+		
 		for (i = 0; i < NUM_CUBES; ++i) {
 			OS_Signal(&MoveCubesSem);
 		}
@@ -259,8 +279,6 @@ void InitAndMoveBlocks(void){
 			OS_Signal(&ThrottleSem);
 		}
 		
-		OS_bSignal(&NeedCubeRedraw);
-		OS_Sleep(1000);
 		for (i = 0; i < NUM_CUBES; ++i) {
 			if (cubes[i].dead) continue;
 			num_alive++;
@@ -268,12 +286,7 @@ void InitAndMoveBlocks(void){
 		if (!num_alive) {
 			InitCubes(1 + (get_rand() % 4));
 		}
-		for (i = 0; i < NUM_CUBES; ++i) {
-			if (cubes[i].dead) continue;
-			if (cubes[i].life == 0) {
-				cubes[i].dead = 1;
-			}
-		}
+		OS_bSignal(&CubeDrawing);
 	}
   OS_Kill();  // done
 }
@@ -283,6 +296,7 @@ void DrawBlocks(void){
 	while (1) {
 		int i;
 		OS_bWait(&NeedCubeRedraw);
+		OS_bWait(&CubeDrawing);
 		OS_bWait(&LCDFree);
 		// BSP_LCD_FillRect(0, 0, block_width * HORIZONAL_NUM_BLOCKS, block_height * VERTICAL_NUM_BLOCKS, LCD_BLACK);
 		for (i = 0; i < NUM_CUBES; ++i) {
@@ -295,6 +309,7 @@ void DrawBlocks(void){
 			BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
 		}
 		OS_bSignal(&LCDFree);
+		OS_bSignal(&CubeDrawing);
 		OS_Suspend();
 	}
   OS_Kill();  // done
@@ -506,7 +521,6 @@ void CrossHair_Init(void){
 void MoveCubeThread(struct Cube *cube) {
 	while(1) {
 		OS_Wait(&MoveCubesSem);
-	  ClearBlockLCD(cube);
 		MoveCube(cube);
 		cube->life--;
 		OS_Signal(&DoneMovingCubesSem);
@@ -556,6 +570,8 @@ int main(void){
 	OS_InitSemaphore(&MoveCubesSem, 0);
 	OS_InitSemaphore(&DoneMovingCubesSem, 0);
 	OS_InitSemaphore(&ThrottleSem, 0);
+	OS_InitSemaphore(&CubeDrawing, 0);
+	OS_InitSemaphore(&NeedCubeRedraw, 0);
 	
   NumCreated = 0 ;
 // create initial foreground threads
@@ -563,7 +579,7 @@ int main(void){
   NumCreated += OS_AddThread(&InitAndMoveBlocks, 128, 1); 
   NumCreated += OS_AddThread(&DrawBlocks, 128, 3); 
   NumCreated += OS_AddThread(&MoveCube0, 128, 3); 
-  NumCreated += OS_AddThread(&MoveCube1, 128, 3); 
+  // NumCreated += OS_AddThread(&MoveCube1, 128, 3); 
   //NumCreated += OS_AddThread(&MoveCube2, 128, 3); 
   //NumCreated += OS_AddThread(&MoveCube3, 128, 3); 
   //NumCreated += OS_AddThread(&MoveCube4, 128, 3); 
