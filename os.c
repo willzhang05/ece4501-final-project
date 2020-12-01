@@ -54,7 +54,7 @@ void (*ButtonTwoTask)(void);
 // sempahores #define prioritySched						// Fixed priority
 // scheduler
 //#define aging										// Dynamic
-//priority scheculer with aging
+// priority scheculer with aging
 
 // TCB Data Structure
 struct tcb {

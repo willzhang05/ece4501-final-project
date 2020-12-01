@@ -53,7 +53,7 @@ struct Cube {
     uint8_t dead;
     uint16_t color;
     uint16_t life;
-	  Sema4Type sem;
+    Sema4Type sem;
 };
 
 struct Cube cubes[NUM_CUBES];
@@ -93,33 +93,35 @@ unsigned long Life;
     return rand;
 }*/
 
-// Joystick-based PRNG. Can grab bits 4-7 from rawX and rawY to cut BSP_Joystick_Input() calls by half if needed
+// Joystick-based PRNG. Can grab bits 4-7 from rawX and rawY to cut BSP_Joystick_Input() calls by
+// half if needed
 uint32_t get_rand() {
-	uint16_t rawX,rawY; // raw adc value
-	uint8_t select;  // prototype-required
-	uint32_t joy_rand;
-	uint32_t low0, low1, low2, low3, low4, low5, low6, low7; // using 4 LSBs from each 32bit raw value
-	
-	// Grab LSBs from joystick raw values
-	BSP_Joystick_Input(&rawX,&rawY,&select);
-	low0 = rawX & 0x000000f;
-	low1 = (rawY & 0x000000f) << 4;
-	
-	BSP_Joystick_Input(&rawX,&rawY,&select);
-	low2 = (rawX & 0x000000f) << 8;
-	low3 = (rawY & 0x000000f) << 12;
-	
-	BSP_Joystick_Input(&rawX,&rawY,&select);
-	low4 = (rawX & 0x000000f) << 16;
-	low5 = (rawY & 0x000000f) << 20;
-	
-	BSP_Joystick_Input(&rawX,&rawY,&select);
-	low6 = (rawX & 0x000000f) << 24;
-	low7 = (rawY & 0x000000f) << 28;
+    uint16_t rawX, rawY;  // raw adc value
+    uint8_t select;       // prototype-required
+    uint32_t joy_rand;
+    uint32_t low0, low1, low2, low3, low4, low5, low6,
+        low7;  // using 4 LSBs from each 32bit raw value
 
-	// Collate LSB values from low[0-7]
-	joy_rand = (low0 | low1 | low2 | low3 | low4 | low5 | low6 | low7);
-	return joy_rand;
+    // Grab LSBs from joystick raw values
+    BSP_Joystick_Input(&rawX, &rawY, &select);
+    low0 = rawX & 0x000000f;
+    low1 = (rawY & 0x000000f) << 4;
+
+    BSP_Joystick_Input(&rawX, &rawY, &select);
+    low2 = (rawX & 0x000000f) << 8;
+    low3 = (rawY & 0x000000f) << 12;
+
+    BSP_Joystick_Input(&rawX, &rawY, &select);
+    low4 = (rawX & 0x000000f) << 16;
+    low5 = (rawY & 0x000000f) << 20;
+
+    BSP_Joystick_Input(&rawX, &rawY, &select);
+    low6 = (rawX & 0x000000f) << 24;
+    low7 = (rawY & 0x000000f) << 28;
+
+    // Collate LSB values from low[0-7]
+    joy_rand = (low0 | low1 | low2 | low3 | low4 | low5 | low6 | low7);
+    return joy_rand;
 }
 
 enum Direction get_random_direction() { return (enum Direction)(get_rand() % 4); }
@@ -144,11 +146,11 @@ static uint32_t restarting = 0;
 Sema4Type ResSem;
 
 int CheckRestarting() {
-	int res;
-	OS_bWait(&ResSem);
-	res = restarting;
-	OS_bSignal(&ResSem);
-	return res;
+    int res;
+    OS_bWait(&ResSem);
+    res = restarting;
+    OS_bSignal(&ResSem);
+    return res;
 }
 
 // Must have CubeLock when calling
@@ -209,20 +211,20 @@ void KillCube(struct Cube *cube) {
 }
 
 int CheckBlockIntersection(struct Cube *cube) {
-		int px, py;
-		px = cube->x * block_width;
-		py = cube->y * block_height;
-		if (x + 4 >= px && x - 4 <= px + block_width) {
-				if (y + 4 >= py && y - 4 <= py + block_height) {
-						ClearBlockLCD(cube, "CheckInt");
-						KillCube(cube);
-						OS_bWait(&InfoSem);
-						Score += 1;
-						OS_bSignal(&InfoSem);
-						return 1;
-				}
-		}
-		return 0;
+    int px, py;
+    px = cube->x * block_width;
+    py = cube->y * block_height;
+    if (x + 4 >= px && x - 4 <= px + block_width) {
+        if (y + 4 >= py && y - 4 <= py + block_height) {
+            ClearBlockLCD(cube, "CheckInt");
+            KillCube(cube);
+            OS_bWait(&InfoSem);
+            Score += 1;
+            OS_bSignal(&InfoSem);
+            return 1;
+        }
+    }
+    return 0;
 }
 
 void MoveCube(struct Cube *cube) {
@@ -236,21 +238,21 @@ void MoveCube(struct Cube *cube) {
     status = StartCritical();
     total_valid_dirs = get_movable_directions(cube, valid_directions);
     if (!total_valid_dirs) {
-			  #ifdef DEBUG_CUBE_COLOR
+#ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_YELLOW;
-			  #endif
+#endif
         EndCritical(status);
         return;
     }
 
     if (valid_directions[cube->dir]) {
-			  #ifdef DEBUG_CUBE_COLOR
+#ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_WHITE;
-			  #endif
+#endif
     } else {
-			  #ifdef DEBUG_CUBE_COLOR
+#ifdef DEBUG_CUBE_COLOR
         cube->color = LCD_RED;
-			  #endif
+#endif
         dir_to_move_num = get_rand() % total_valid_dirs;
 
         for (i = 0; i < 4; ++i) {
@@ -294,80 +296,80 @@ Sema4Type CheckIntSem;
 int CheckIntOk = 0;
 
 int CanCheckIntersectionAndHold() {
-	OS_bWait(&CheckIntSem);
-	if (!CheckIntOk) {
-		OS_bSignal(&CheckIntSem);
-		return 0;
-	}
-	return CheckIntOk;
+    OS_bWait(&CheckIntSem);
+    if (!CheckIntOk) {
+        OS_bSignal(&CheckIntSem);
+        return 0;
+    }
+    return CheckIntOk;
 }
 
 static int reinit = 0;
 
 void MoveCubeThread(struct Cube *cube) {
     while (CheckLife() > 0 && !cube->dead && !CheckRestarting() && !reinit) {
-			  while (!cube->dead && !MoveCubesSem.Value && !CheckRestarting() && !reinit) {
-					if (CanCheckIntersectionAndHold()) {
-						int res;
-						OS_bWait(&cube->sem);
-					  res = CheckBlockIntersection(cube);
-						OS_bSignal(&cube->sem);
-					  OS_bSignal(&CheckIntSem);
-						if (res) break;
-					}
-					OS_Suspend();
-				}
-				if (reinit || CheckRestarting()) break;
-				OS_bWait(&cube->sem);
-				if (cube->dead) {
-				  OS_bSignal(&cube->sem);
-					break;
-				}
-				OS_bSignal(&cube->sem);
+        while (!cube->dead && !MoveCubesSem.Value && !CheckRestarting() && !reinit) {
+            if (CanCheckIntersectionAndHold()) {
+                int res;
+                OS_bWait(&cube->sem);
+                res = CheckBlockIntersection(cube);
+                OS_bSignal(&cube->sem);
+                OS_bSignal(&CheckIntSem);
+                if (res) break;
+            }
+            OS_Suspend();
+        }
+        if (reinit || CheckRestarting()) break;
+        OS_bWait(&cube->sem);
+        if (cube->dead) {
+            OS_bSignal(&cube->sem);
+            break;
+        }
+        OS_bSignal(&cube->sem);
         OS_Wait(&MoveCubesSem);
-				if (reinit || CheckRestarting()) break;
-				OS_bWait(&cube->sem);
-			  if (!cube->dead) {
-					MoveCube(cube);
-					cube->life--;
-					if (!cube->life) {
-						KillCube(cube);
-						OS_bWait(&InfoSem);
-						if (Life) Life--;
-						OS_bSignal(&InfoSem);
-					}
-				}
-				OS_bSignal(&cube->sem);
+        if (reinit || CheckRestarting()) break;
+        OS_bWait(&cube->sem);
+        if (!cube->dead) {
+            MoveCube(cube);
+            cube->life--;
+            if (!cube->life) {
+                KillCube(cube);
+                OS_bWait(&InfoSem);
+                if (Life) Life--;
+                OS_bSignal(&InfoSem);
+            }
+        }
+        OS_bSignal(&cube->sem);
         OS_Signal(&DoneMovingCubesSem);
         OS_Wait(&ThrottleSem);
     }
-		OS_Signal(&MoveWaitSem);
+    OS_Signal(&MoveWaitSem);
 }
 
 void MoveCube0(void) {
     struct Cube *cube = &cubes[0];
     MoveCubeThread(cube);
-		OS_Kill();
+    OS_Kill();
 }
 void MoveCube1(void) {
     struct Cube *cube = &cubes[1];
     MoveCubeThread(cube);
-		OS_Kill();
+    OS_Kill();
 }
 void MoveCube2(void) {
     struct Cube *cube = &cubes[2];
     MoveCubeThread(cube);
-		OS_Kill();
+    OS_Kill();
 }
 void MoveCube3(void) {
     struct Cube *cube = &cubes[3];
     MoveCubeThread(cube);
-		OS_Kill();
+    OS_Kill();
 }
 void MoveCube4(void) {
     struct Cube *cube = &cubes[4];
     MoveCubeThread(cube);
-		OS_Kill();
+    OS_Kill();
 }
 
 #define MAX_CUBE_LIFETIME 10
@@ -376,13 +378,11 @@ static int run_once = 0;
 static int num_last_created = NUM_CUBES;
 void InitCubes(int num_cubes) {
     int y, x, i;
-    void(*move_cube[5])(void) = {
-			&MoveCube0, &MoveCube1, &MoveCube2, &MoveCube3, &MoveCube4
-		};
-	  num_last_created = num_cubes;
+    void (*move_cube[5])(void) = {&MoveCube0, &MoveCube1, &MoveCube2, &MoveCube3, &MoveCube4};
+    num_last_created = num_cubes;
     OS_InitSemaphore(&MoveWaitSem, 0);
     OS_InitSemaphore(&CheckIntSem, 1);
-		CheckIntOk = 0;
+    CheckIntOk = 0;
     // initialize data structures
     for (y = 0; y < VERTICAL_NUM_BLOCKS; ++y) {
         for (x = 0; x < HORIZONAL_NUM_BLOCKS; ++x) {
@@ -418,11 +418,10 @@ void InitCubes(int num_cubes) {
         cubes[i].dir = get_random_direction();
         cubes[i].color = LCD_BLUE;
         cubes[i].life = 1 + (get_rand() % (MAX_CUBE_LIFETIME - 1));
-				OS_InitSemaphore(&cubes[i].sem, 1);
-				OS_AddThread(move_cube[i], 128, 3);
+        OS_InitSemaphore(&cubes[i].sem, 1);
+        OS_AddThread(move_cube[i], 128, 3);
     }
 }
-
 
 // kills threads for cubes the crosshair intersects with and increments the score
 // inputs: x and y position of the crosshair
@@ -433,47 +432,48 @@ int CheckAllBlockIntersections() {
     OS_bWait(&CubeDrawing);
     for (i = 0; i < NUM_CUBES; ++i) {
         if (cubes[i].dead) continue;
-			  intersect += CheckBlockIntersection(&cubes[i]);
+        intersect += CheckBlockIntersection(&cubes[i]);
     }
     OS_bSignal(&CubeDrawing);
     return intersect;
 }
 
 void ClearLCDBlocks() {
-    BSP_LCD_FillRect(0, 0, HORIZONAL_NUM_BLOCKS * block_width, VERTICAL_NUM_BLOCKS * block_height, LCD_BLACK);
+    BSP_LCD_FillRect(0, 0, HORIZONAL_NUM_BLOCKS * block_width, VERTICAL_NUM_BLOCKS * block_height,
+                     LCD_BLACK);
 }
 
 void InitAndSyncBlocks(void) {
     int i;
-	  int8_t live_or_dying_cubes[NUM_CUBES] = {0};
+    int8_t live_or_dying_cubes[NUM_CUBES] = {0};
     InitCubes(NUM_CUBES);
     OS_bSignal(&CubeDrawing);
     while (CheckLife() > 0) {
         int num_alive = 0;
-			  OS_bWait(&CheckIntSem);
-			  CheckIntOk = 1;
-			  OS_bSignal(&CheckIntSem);
+        OS_bWait(&CheckIntSem);
+        CheckIntOk = 1;
+        OS_bSignal(&CheckIntSem);
         OS_bSignal(&NeedCubeRedraw);
         OS_Sleep(1000);
-			
-			  OS_bWait(&CheckIntSem);
-			  CheckIntOk = 0;
-			  OS_bSignal(&CheckIntSem);
-				
-				if (CheckRestarting()) break;
+
+        OS_bWait(&CheckIntSem);
+        CheckIntOk = 0;
+        OS_bSignal(&CheckIntSem);
+
+        if (CheckRestarting()) break;
 
         OS_bWait(&CubeDrawing);
-				
+
         for (i = 0; i < NUM_CUBES; ++i) {
-						OS_bWait(&cubes[i].sem);
+            OS_bWait(&cubes[i].sem);
             if (cubes[i].dead) {
-							live_or_dying_cubes[i] = 0;
-						  OS_bSignal(&cubes[i].sem);
-							continue;
-						}
+                live_or_dying_cubes[i] = 0;
+                OS_bSignal(&cubes[i].sem);
+                continue;
+            }
             ClearBlockLCD(&cubes[i], "Premove");
-						live_or_dying_cubes[i] = 1;
-						OS_bSignal(&cubes[i].sem);
+            live_or_dying_cubes[i] = 1;
+            OS_bSignal(&cubes[i].sem);
         }
 
         for (i = 0; i < NUM_CUBES; ++i) {
@@ -494,44 +494,44 @@ void InitAndSyncBlocks(void) {
             num_alive++;
         }
         if (!num_alive) {
-					  OS_Sleep(500);
-	          OS_bWait(&ResSem); // do not allow a restart right now
-					  #ifdef DEBUG_V
-					  BSP_LCD_DrawString(0, 0, "About to reinitialize", LCD_WHITE);
-					  OS_Sleep(50);
-					  #endif
-					  reinit = 1;
-					  for (i = 0; i < num_last_created; ++i) {
-							OS_Signal(&MoveCubesSem);
-					    #ifdef DEBUG_V
-					    BSP_LCD_DrawString(0, 3 + i, "Waiting... ", LCD_WHITE);
-					    #endif
-							OS_Wait(&MoveWaitSem);
-					    #ifdef DEBUG_V
-					    BSP_LCD_DrawString(10, 3 + i, "Done", LCD_GREEN);
-					    #endif
-						}
-					  reinit = 0;
-						// ClearLCDBlocks();
-						OS_InitSemaphore(&MoveWaitSem, 0);
-						OS_InitSemaphore(&MoveCubesSem, 0);
-					  #ifdef DEBUG_V
-					  BSP_LCD_DrawString(0, 1, "Done waiting", LCD_WHITE);
-					  OS_Sleep(50);
-					  #endif
+            OS_Sleep(500);
+            OS_bWait(&ResSem);  // do not allow a restart right now
+#ifdef DEBUG_V
+            BSP_LCD_DrawString(0, 0, "About to reinitialize", LCD_WHITE);
+            OS_Sleep(50);
+#endif
+            reinit = 1;
+            for (i = 0; i < num_last_created; ++i) {
+                OS_Signal(&MoveCubesSem);
+#ifdef DEBUG_V
+                BSP_LCD_DrawString(0, 3 + i, "Waiting... ", LCD_WHITE);
+#endif
+                OS_Wait(&MoveWaitSem);
+#ifdef DEBUG_V
+                BSP_LCD_DrawString(10, 3 + i, "Done", LCD_GREEN);
+#endif
+            }
+            reinit = 0;
+            // ClearLCDBlocks();
+            OS_InitSemaphore(&MoveWaitSem, 0);
+            OS_InitSemaphore(&MoveCubesSem, 0);
+#ifdef DEBUG_V
+            BSP_LCD_DrawString(0, 1, "Done waiting", LCD_WHITE);
+            OS_Sleep(50);
+#endif
             InitCubes(1 + (get_rand() % 4));
-					  #ifdef DEBUG_V
-					  BSP_LCD_DrawString(0, 1, "Done reinit", LCD_WHITE);
-					  OS_Sleep(50);
-					  #endif
-	          OS_bSignal(&ResSem);
+#ifdef DEBUG_V
+            BSP_LCD_DrawString(0, 1, "Done reinit", LCD_WHITE);
+            OS_Sleep(50);
+#endif
+            OS_bSignal(&ResSem);
         }
         OS_bSignal(&CubeDrawing);
     }
-		#ifdef DEBUG
-		BSP_LCD_DrawString(0, 9, "MoveBlocks exiting", LCD_WHITE);
-		#endif
-		OS_Signal(&DoneSem);
+#ifdef DEBUG
+    BSP_LCD_DrawString(0, 9, "MoveBlocks exiting", LCD_WHITE);
+#endif
+    OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -556,10 +556,10 @@ void DrawBlocks(void) {
         OS_bSignal(&CubeDrawing);
         OS_Suspend();
     }
-		#ifdef DEBUG
-		BSP_LCD_DrawString(0, 10, "DrawBlocks exiting", LCD_WHITE);
-		#endif
-		OS_Signal(&DoneSem);
+#ifdef DEBUG
+    BSP_LCD_DrawString(0, 10, "DrawBlocks exiting", LCD_WHITE);
+#endif
+    OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -707,10 +707,10 @@ void Consumer(void) {
         prevy = data.y;
         OS_Suspend();
     }
-		#ifdef DEBUG
-		BSP_LCD_DrawString(0, 11, "Consumer exiting", LCD_WHITE);
-		#endif
-		OS_Signal(&DoneSem);
+#ifdef DEBUG
+    BSP_LCD_DrawString(0, 11, "Consumer exiting", LCD_WHITE);
+#endif
+    OS_Signal(&DoneSem);
     OS_Kill();  // done
 }
 
@@ -720,19 +720,19 @@ void Consumer(void) {
 // ***********ButtonWork2*************
 void Restart(void) {
     uint32_t StartTime, CurrentTime, ElapsedTime, i;
-	  OS_bWait(&ResSem);
-	  if (restarting) {
-		  OS_bSignal(&ResSem);
-			OS_Kill();
-			return;
-		}
-	  restarting = 1;
-		OS_bSignal(&ResSem);
+    OS_bWait(&ResSem);
+    if (restarting) {
+        OS_bSignal(&ResSem);
+        OS_Kill();
+        return;
+    }
+    restarting = 1;
+    OS_bSignal(&ResSem);
     OS_Sleep(50);  // wait
-	  OS_bWait(&InfoSem);
-	  Life = 0; // Kill
-	  OS_bSignal(&InfoSem);
-	  OS_bSignal(&NeedCubeRedraw);
+    OS_bWait(&InfoSem);
+    Life = 0;  // Kill
+    OS_bSignal(&InfoSem);
+    OS_bSignal(&NeedCubeRedraw);
     StartTime = OS_MsTime();
     ElapsedTime = 0;
     OS_bWait(&LCDFree);
@@ -743,29 +743,29 @@ void Restart(void) {
         ElapsedTime = CurrentTime - StartTime;
         BSP_LCD_DrawString(5, 6, "Restarting", LCD_WHITE);
     }
-		for (i = 0; i < NUM_CUBES; ++i) {
-      OS_Signal(&MoveCubesSem);
-      OS_Signal(&ThrottleSem);
-		}
-		OS_bSignal(&LCDFree);
-		#ifdef DEBUG
-		for (i = 0; i < 3; ++i) {
-      BSP_LCD_Message(0, i, 0, "Check", i);
-			OS_Wait(&DoneSem);
-      BSP_LCD_DrawString(10, i, "Done", LCD_GREEN);
+    for (i = 0; i < NUM_CUBES; ++i) {
+        OS_Signal(&MoveCubesSem);
+        OS_Signal(&ThrottleSem);
     }
-		for (i = 0; i < num_last_created; ++i) {
-			OS_Wait(&MoveWaitSem);
+    OS_bSignal(&LCDFree);
+#ifdef DEBUG
+    for (i = 0; i < 3; ++i) {
+        BSP_LCD_Message(0, i, 0, "Check", i);
+        OS_Wait(&DoneSem);
+        BSP_LCD_DrawString(10, i, "Done", LCD_GREEN);
     }
-		BSP_LCD_DrawString(0, 0, "Restarting!!", LCD_RED);
-		#else
-		for (i = 0; i < 3; ++i) {
-			OS_Wait(&DoneSem);
+    for (i = 0; i < num_last_created; ++i) {
+        OS_Wait(&MoveWaitSem);
     }
-		for (i = 0; i < num_last_created; ++i) {
-			OS_Wait(&MoveWaitSem);
+    BSP_LCD_DrawString(0, 0, "Restarting!!", LCD_RED);
+#else
+    for (i = 0; i < 3; ++i) {
+        OS_Wait(&DoneSem);
     }
-		#endif
+    for (i = 0; i < num_last_created; ++i) {
+        OS_Wait(&MoveWaitSem);
+    }
+#endif
     OS_bWait(&LCDFree);
     BSP_LCD_FillScreen(BGCOLOR);
 
@@ -777,7 +777,7 @@ void Restart(void) {
     Life = DEFAULT_LIFE;
     x = 63;
     y = 63;
-		
+
     OS_bSignal(&LCDFree);
 
     OS_InitSemaphore(&MoveCubesSem, 0);
@@ -786,11 +786,11 @@ void Restart(void) {
     OS_InitSemaphore(&CubeDrawing, 0);
     OS_InitSemaphore(&NeedCubeRedraw, 0);
     OS_InitSemaphore(&InfoSem, 1);
-		
-		OS_bWait(&ResSem);
-		restarting = 0;
-		OS_bSignal(&ResSem);
-		
+
+    OS_bWait(&ResSem);
+    restarting = 0;
+    OS_bSignal(&ResSem);
+
     OS_AddThread(&Consumer, 128, 1);
     OS_AddThread(&InitAndSyncBlocks, 128, 1);
     OS_AddThread(&DrawBlocks, 128, 3);
@@ -823,9 +823,8 @@ void CrossHair_Init(void) {
 }
 
 void IdleThread(void) {
-	while (1) OS_Suspend();
+    while (1) OS_Suspend();
 }
-
 
 //******************* Main Function**********
 int main(void) {
