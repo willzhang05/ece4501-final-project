@@ -40,7 +40,10 @@ uint8_t area[2];
 #define SLEEP_TIME 500
 #define MAX_CUBE_LIFETIME 20
 #define DEFAULT_LIFE 10
-#define MAX_ATTEMPTS 50 // for cube placement
+#define MAX_ATTEMPTS 50  // for cube placement
+
+#define POLY_MASK_32 0xB4BCD35C
+#define POLY_MASK_31 0x7A5BC2E3
 
 // #define DEBUG_CUBE_COLOR
 
@@ -89,26 +92,36 @@ unsigned short MaxWithI1;
 unsigned long Score;
 unsigned long Life;
 
-static uint32_t rand = 21269;
+static uint32_t lfsr32;
+static uint32_t lfsr31;
 
-/*uint32_t get_rand() {
-    rand = rand * rand + rand / 2;
-    return rand;
-}*/
+int shift_lfsr(uint32_t *lfsr, uint32_t poly_mask) {
+    int feedback = *lfsr & 1;
+    *lfsr >>= 1;
+    if (feedback == 1) {
+        *lfsr ^= poly_mask;
+    }
+    return *lfsr;
+}
+
+void init_lfsrs(uint32_t x, uint32_t y) {
+    lfsr32 = x;
+    lfsr31 = y;
+}
 
 // Joystick-based PRNG. Can grab bits 4-7 from rawX and rawY to cut BSP_Joystick_Input() calls by
 // half if needed
-uint32_t get_rand() {
-    uint16_t rawX, rawY;  // raw adc value
-    uint8_t select;       // prototype-required
-    uint32_t joy_rand;
+uint32_t get_rand(void) {
+    // uint16_t rawX, rawY;  // raw adc value
+    // uint8_t select;       // prototype-required
+    // uint32_t joy_rand;
     // Grab readings from joystick
-    BSP_Joystick_Input(&rawX, &rawY, &select);
+    // BSP_Joystick_Input(&rawX, &rawY, &select);
+    shift_lfsr(&lfsr32, POLY_MASK_32);
+    return (shift_lfsr(&lfsr32, POLY_MASK_32) ^ shift_lfsr(&lfsr31, POLY_MASK_31)) & 0xFFFF;
 
-    // Concatenate x joystick reading with y joystick reading
-    joy_rand = (rawX << 16 | rawY);
-    rand = rand * rand + joy_rand + 1;
-    return rand;
+    // rand = rand * rand + joy_rand + 1;
+    // return rand;
 }
 
 enum Direction get_random_direction() { return (enum Direction)(get_rand() % 4); }
@@ -407,7 +420,6 @@ void InitCubes(int num_cubes) {
         OS_AddThread(move_cube[i], 128, 3);
     }
 }
-
 
 void ClearLCDBlocks() {
     BSP_LCD_FillRect(0, 0, HORIZONAL_NUM_BLOCKS * block_width, VERTICAL_NUM_BLOCKS * block_height,
@@ -798,6 +810,9 @@ void IdleThread(void) {
 
 //******************* Main Function**********
 int main(void) {
+    uint16_t rawX, rawY;  // raw adc value
+    uint32_t seedA, seedB;
+
     OS_Init();  // initialize, disable interrupts
     Device_Init();
     CrossHair_Init();
@@ -806,6 +821,12 @@ int main(void) {
     Score = 0;
     Life = DEFAULT_LIFE;
 
+    // Grab readings from joystick
+    BSP_Joystick_Input(&rawX, &rawY, &select);
+    // Concatenate joystick readings
+    seedA = (rawX << 16 | rawY);
+    seedB = (rawY << 16 | rawX);
+    init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
 
