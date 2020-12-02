@@ -112,16 +112,8 @@ void init_lfsrs(uint32_t x, uint32_t y) {
 // Joystick-based PRNG. Can grab bits 4-7 from rawX and rawY to cut BSP_Joystick_Input() calls by
 // half if needed
 uint32_t get_rand(void) {
-    // uint16_t rawX, rawY;  // raw adc value
-    // uint8_t select;       // prototype-required
-    // uint32_t joy_rand;
-    // Grab readings from joystick
-    // BSP_Joystick_Input(&rawX, &rawY, &select);
     shift_lfsr(&lfsr32, POLY_MASK_32);
     return (shift_lfsr(&lfsr32, POLY_MASK_32) ^ shift_lfsr(&lfsr31, POLY_MASK_31)) & 0xFFFF;
-
-    // rand = rand * rand + joy_rand + 1;
-    // return rand;
 }
 
 enum Direction get_random_direction() { return (enum Direction)(get_rand() % 4); }
