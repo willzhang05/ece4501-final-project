@@ -408,20 +408,6 @@ void InitCubes(int num_cubes) {
     }
 }
 
-// kills threads for cubes the crosshair intersects with and increments the score
-// inputs: x and y position of the crosshair
-// outputs: number of cubes that the crosshair is intersecting with
-int CheckAllBlockIntersections() {
-    int i;
-    int intersect = 0;
-    OS_bWait(&CubeDrawing);
-    for (i = 0; i < NUM_CUBES; ++i) {
-        if (cubes[i].dead) continue;
-        intersect += CheckBlockIntersection(&cubes[i]);
-    }
-    OS_bSignal(&CubeDrawing);
-    return intersect;
-}
 
 void ClearLCDBlocks() {
     BSP_LCD_FillRect(0, 0, HORIZONAL_NUM_BLOCKS * block_width, VERTICAL_NUM_BLOCKS * block_height,
@@ -687,7 +673,6 @@ void Consumer(void) {
         OS_bSignal(&InfoSem);
         ConsumerCount++;
         OS_bSignal(&LCDFree);
-        // CheckAllBlockIntersections();
         prevx = data.x;
         prevy = data.y;
         OS_Suspend();
