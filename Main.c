@@ -24,7 +24,6 @@
 #define PSEUDOPERIOD 8000000
 #define LIFETIME 1000
 #define RUNLENGTH 600  // 30 seconds run length
-#define DEFAULT_LIFE 10
 
 extern Sema4Type LCDFree;
 uint16_t
@@ -38,6 +37,10 @@ uint8_t area[2];
 #define HORIZONAL_NUM_BLOCKS 6
 #define VERTICAL_NUM_BLOCKS 6
 #define NUM_CUBES 5
+#define SLEEP_TIME 500
+#define MAX_CUBE_LIFETIME 20
+#define DEFAULT_LIFE 10
+#define MAX_ATTEMPTS 50 // for cube placement
 
 // #define DEBUG_CUBE_COLOR
 
@@ -104,7 +107,7 @@ uint32_t get_rand() {
 
     // Concatenate x joystick reading with y joystick reading
     joy_rand = (rawX << 16 | rawY);
-    rand = rand * rand + joy_rand;
+    rand = rand * rand + joy_rand + 1;
     return rand;
 }
 
@@ -356,8 +359,6 @@ void MoveCube4(void) {
     OS_Kill();
 }
 
-#define MAX_CUBE_LIFETIME 10
-
 static int run_once = 0;
 static int num_last_created = NUM_CUBES;
 void InitCubes(int num_cubes) {
@@ -391,7 +392,7 @@ void InitCubes(int num_cubes) {
             BSP_LCD_Message(0, 6, 0, "y: ", y);
             OS_Sleep(50);
 #endif
-            if (attempt++ > 5) {
+            if (attempt++ > MAX_ATTEMPTS) {
                 Fatal("Ran out of attempts", "RNG is broken");
             }
         } while (!blocks[y][x].Value);  // keep picking new coordinates until the position is free
@@ -438,7 +439,7 @@ void InitAndSyncBlocks(void) {
         CheckIntOk = 1;
         OS_bSignal(&CheckIntSem);
         OS_bSignal(&NeedCubeRedraw);
-        OS_Sleep(1000);
+        OS_Sleep(SLEEP_TIME);
 
         OS_bWait(&CheckIntSem);
         CheckIntOk = 0;
