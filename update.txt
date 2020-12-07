@@ -1,0 +1,11 @@
+We have made no revisions to our project idea. 
+The powerups we are currently working on are:
+
+Circular cross hair
+Faster cross hair
+Slower cubespeed
+Cube magnet
+
+We have thought about adding negative powerups - but we are trying to implement these first and then move onto adding more.
+
+The work hasn't really been split due to everyone's final schedules being different, but everyone is contributing equally. 
