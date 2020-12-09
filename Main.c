@@ -39,7 +39,7 @@ uint8_t area[2];
 #define NUM_CUBES 5
 #define SLEEP_TIME 500
 #define MAX_CUBE_LIFETIME 20
-#define DEFAULT_LIFE 10
+#define DEFAULT_LIFE 5
 #define MAX_ATTEMPTS 50  // for cube placement
 
 #define POLY_MASK_32 0xB4BCD35C
@@ -51,6 +51,7 @@ uint8_t area[2];
 // #define DEBUG_V
 
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
+enum PowerUp { NONE = 0, LIFE = 1 };
 
 struct Cube {
     uint8_t x;
@@ -60,6 +61,7 @@ struct Cube {
     uint16_t color;
     uint16_t life;
     Sema4Type sem;
+	  enum PowerUp powerup;
 };
 
 struct Cube cubes[NUM_CUBES];
@@ -135,12 +137,20 @@ int CheckLife(void) {
     return res;
 }
 static uint32_t restarting = 0;
+static uint32_t scoring = 0;
 Sema4Type ResSem;
 
 int CheckRestarting() {
     int res;
     OS_bWait(&ResSem);
     res = restarting;
+    OS_bSignal(&ResSem);
+    return res;
+}
+int CheckScoring() {
+    int res;
+    OS_bWait(&ResSem);
+    res = scoring;
     OS_bSignal(&ResSem);
     return res;
 }
@@ -202,6 +212,20 @@ void KillCube(struct Cube *cube) {
     OS_bSignal(&blocks[cube->y][cube->x]);
 }
 
+Sema4Type reset_crosshair_sem;
+void ResetCrosshairSize() {
+}
+
+void HandlePowerUp(struct Cube *cube) {
+	switch(cube->powerup) {
+		case NONE:
+			break;
+		case LIFE:
+			Life += 1;
+			break;
+	}
+}
+
 int CheckBlockIntersection(struct Cube *cube) {
     int px, py;
     px = cube->x * block_width;
@@ -212,6 +236,7 @@ int CheckBlockIntersection(struct Cube *cube) {
             KillCube(cube);
             OS_bWait(&InfoSem);
             Score += 1;
+					  HandlePowerUp(cube);
             OS_bSignal(&InfoSem);
             return 1;
         }
@@ -296,6 +321,21 @@ int CanCheckIntersectionAndHold() {
     return CheckIntOk;
 }
 
+void DecLife() {
+    OS_bWait(&InfoSem);
+    if (Life) {
+      Life--;
+			if (!Life) {
+				// Game over
+        BSP_LCD_FillScreen(BGCOLOR);
+        BSP_LCD_DrawString(6, 7, "Game over!", LCD_RED);
+        BSP_LCD_DrawString(2, 8, "Press SW1 to save", LCD_WHITE);
+        BSP_LCD_DrawString(1, 9, "Press SW2 to restart", LCD_WHITE);
+			}
+    }
+    OS_bSignal(&InfoSem);
+}
+
 static int reinit = 0;
 
 void MoveCubeThread(struct Cube *cube) {
@@ -326,9 +366,7 @@ void MoveCubeThread(struct Cube *cube) {
             cube->life--;
             if (!cube->life) {
                 KillCube(cube);
-                OS_bWait(&InfoSem);
-                if (Life) Life--;
-                OS_bSignal(&InfoSem);
+							  DecLife();
             }
         }
         OS_bSignal(&cube->sem);
@@ -388,6 +426,7 @@ void InitCubes(int num_cubes) {
         uint8_t x = 0;
         uint8_t y = 0;
         uint8_t attempt = 0;
+			  int powerup_rand;
         do {
             x = get_rand() % HORIZONAL_NUM_BLOCKS;
             y = get_rand() % VERTICAL_NUM_BLOCKS;
@@ -406,8 +445,15 @@ void InitCubes(int num_cubes) {
         cubes[i].y = y;
         cubes[i].dead = 0;
         cubes[i].dir = get_random_direction();
-        cubes[i].color = LCD_BLUE;
         cubes[i].life = 1 + (get_rand() % (MAX_CUBE_LIFETIME - 1));
+				powerup_rand = get_rand() % 10;
+				if (powerup_rand == 0) {
+					cubes[i].color = LCD_RED;
+					cubes[i].powerup = LIFE;
+				} else {
+					cubes[i].color = LCD_BLUE;
+					cubes[i].powerup = NONE;
+				}
         OS_InitSemaphore(&cubes[i].sem, 1);
         OS_AddThread(move_cube[i], 128, 3);
     }
@@ -516,6 +562,11 @@ void DrawBlocks(void) {
         OS_bWait(&NeedCubeRedraw);
         OS_bWait(&CubeDrawing);
         OS_bWait(&LCDFree);
+			  if (!CheckLife()) {
+          OS_bSignal(&LCDFree);
+          OS_bSignal(&CubeDrawing);
+					break;
+				}
         // BSP_LCD_FillRect(0, 0, block_width * HORIZONAL_NUM_BLOCKS, block_height *
         // VERTICAL_NUM_BLOCKS, LCD_BLACK);
         for (i = 0; i < NUM_CUBES; ++i) {
@@ -614,26 +665,65 @@ void Producer(void) {
 // one foreground task created with button push
 // foreground treads run for 2 sec and die
 // ***********ButtonWork*************
-void ButtonWork(void) {
-    uint32_t StartTime, CurrentTime, ElapsedTime;
-    StartTime = OS_MsTime();
-    ElapsedTime = 0;
-    OS_bWait(&LCDFree);
-    Button1RespTime = OS_MsTime() - Button1PushTime;  // LCD Response here
-    BSP_LCD_FillScreen(BGCOLOR);
-    // Button1FuncTime = OS_MsTime() - Button1PushTime;
-    // Button1PushTime = 0;
-    while (ElapsedTime < LIFETIME) {
-        CurrentTime = OS_MsTime();
-        ElapsedTime = CurrentTime - StartTime;
-        BSP_LCD_Message(0, 5, 0, "Life Time:", LIFETIME);
-        BSP_LCD_Message(1, 0, 0, "Horizontal Area:", area[0]);
-        BSP_LCD_Message(1, 1, 0, "Vertical Area:", area[1]);
-        BSP_LCD_Message(1, 2, 0, "Elapsed Time:", ElapsedTime);
-        OS_Sleep(50);
-    }
-    BSP_LCD_FillScreen(BGCOLOR);
-    OS_bSignal(&LCDFree);
+#define CENTER 64
+void HighScore(void) {
+	  int let_idx = 0;
+    jsDataType data2, data3;
+	  char letters[3] = { 'A', 'A', 'A' };
+    OS_bWait(&ResSem);
+    if (restarting || scoring) {
+			if (scoring == 1) scoring = 2;
+      OS_bSignal(&ResSem);
+      OS_Kill();
+			return;
+		}
+		scoring = 1;
+    OS_bSignal(&ResSem);
+		OS_bWait(&LCDFree);
+		x = CENTER;
+		y = CENTER;
+    JsFifo_Get(&data3);
+    JsFifo_Get(&data2);
+		BSP_LCD_FillScreen(BGCOLOR);
+    BSP_LCD_DrawString(0, 10, "Press SW1 to save", LCD_WHITE);
+		// While SW2 is not pressed a second time
+		while (CheckScoring() != 2) {
+			  int i;
+		    x = CENTER;
+		    y = CENTER;
+        JsFifo_Get(&data3);
+			  if (data3.x - CENTER > 0 && data2.x - CENTER <= 0) {
+					if (let_idx < 2)
+					  let_idx++;
+				} else if (data3.x - CENTER < 0 && data2.x - CENTER >= 0) {
+					if (let_idx > 0)
+					  let_idx--;
+				} else {
+					// only update letter if we're not updating let_idx
+					letters[let_idx] += (data3.y - CENTER)/3;
+					if (letters[let_idx] < 'A') {
+						letters[let_idx] = 'Z' - ('A' - letters[let_idx] - 1);
+					} else if (letters[let_idx] > 'Z') {
+						letters[let_idx] = 'A' + (letters[let_idx] - 'Z' - 1);
+					}
+				}
+				
+			// TODO: Update let_idx and letter
+			  for (i = 0; i < 3; ++i) {
+					int16_t color = LCD_WHITE;
+					if (i == let_idx) {
+						color = LCD_RED;
+					}
+					BSP_LCD_DrawChar(30 + i * 20, 25, letters[i], color, LCD_BLACK, 2);
+				}
+			  // data1 = data2;
+			  data2 = data3;
+			  OS_Sleep(50);
+		}
+    OS_bWait(&ResSem);
+		scoring = 0;
+    OS_bSignal(&ResSem);
+		BSP_LCD_DrawString(0, 0, "DONE WITH HS", LCD_WHITE);
     OS_Kill();  // done, OS does not return from a Kill
 }
 
@@ -643,7 +733,7 @@ void ButtonWork(void) {
 // background threads execute once and return
 void SW1Push(void) {
     if (OS_MsTime() > 20) {  // debounce
-        if (OS_AddThread(&ButtonWork, 128, 4)) {
+        if (OS_AddThread(&HighScore, 128, 4)) {
             OS_ClearMsTime();
             NumCreated++;
         }
@@ -695,7 +785,7 @@ void Consumer(void) {
 void Restart(void) {
     uint32_t StartTime, CurrentTime, ElapsedTime, i;
     OS_bWait(&ResSem);
-    if (restarting) {
+    if (restarting || scoring) {
         OS_bSignal(&ResSem);
         OS_Kill();
         return;
@@ -760,6 +850,7 @@ void Restart(void) {
     OS_InitSemaphore(&CubeDrawing, 0);
     OS_InitSemaphore(&NeedCubeRedraw, 0);
     OS_InitSemaphore(&InfoSem, 1);
+    OS_InitSemaphore(&reset_crosshair_sem, 1);
 
     OS_bWait(&ResSem);
     restarting = 0;
@@ -835,6 +926,7 @@ int main(void) {
     OS_InitSemaphore(&InfoSem, 1);
     OS_InitSemaphore(&ResSem, 1);
     OS_InitSemaphore(&DoneSem, 0);
+    OS_InitSemaphore(&reset_crosshair_sem, 1);
 
     NumCreated = 0;
     // create initial foreground threads

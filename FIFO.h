@@ -33,7 +33,7 @@ void EndCritical(long sr);  // restore I bit to previous value
 
 // Two-pointer implementation of the receive FIFO
 // can hold 0 to RXFIFOSIZE-1 elements
-#define JSFIFOSIZE 16  // can be any size
+#define JSFIFOSIZE 4  // can be any size
 #define JSFIFOSUCCESS 1
 #define JSFIFOFAIL 0
 
