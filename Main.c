@@ -327,10 +327,13 @@ void DecLife() {
       Life--;
 			if (!Life) {
 				// Game over
+        OS_bWait(&LCDFree);
         BSP_LCD_FillScreen(BGCOLOR);
-        BSP_LCD_DrawString(6, 7, "Game over!", LCD_RED);
+        BSP_LCD_DrawString(6, 4, "Game over!", LCD_RED);
+				BSP_LCD_Message(0, 6, 5, "Score: ", Score);
         BSP_LCD_DrawString(2, 8, "Press SW1 to save", LCD_WHITE);
         BSP_LCD_DrawString(1, 9, "Press SW2 to restart", LCD_WHITE);
+        OS_bSignal(&LCDFree);
 			}
     }
     OS_bSignal(&InfoSem);
@@ -660,6 +663,45 @@ void Producer(void) {
 
 //--------------end of Task 1-----------------------------
 
+struct HighScore {
+	char letters[4];
+	int score;
+};
+
+#define NUM_HIGHSCORES 5
+
+struct HighScore highscores[NUM_HIGHSCORES];
+
+void MergeHighScore(char *letters, int score) {
+	int i = 0, j;
+	for (; i < NUM_HIGHSCORES; ++i) {
+		if (highscores[i].score < score) {
+			for (j = NUM_HIGHSCORES - 1; j > i; --j) {
+				highscores[j] = highscores[j-1];
+			}
+			highscores[i].score = score;
+			highscores[i].letters[0] = letters[0];
+			highscores[i].letters[1] = letters[1];
+			highscores[i].letters[2] = letters[2];
+			highscores[i].letters[3] = 0;
+			break;
+		}
+	}
+}
+
+void DrawHighScores() {
+	  int i;
+		OS_bWait(&LCDFree);
+	  BSP_LCD_FillScreen(BGCOLOR);
+	  for (i = 0; i < NUM_HIGHSCORES; ++i) {
+			if (highscores[i].score < 0) break;
+			BSP_LCD_Message(0, 2 + i * 2, 6, highscores[i].letters, highscores[i].score);
+		}
+		BSP_LCD_DrawString(5, 0, "Highscores", LCD_WHITE);
+		BSP_LCD_DrawString(0, 10, "Press SW2 to restart", LCD_WHITE);
+		OS_bSignal(&LCDFree);
+}
+
 //------------------Task 2--------------------------------
 // background thread executes with SW1 button
 // one foreground task created with button push
@@ -667,9 +709,13 @@ void Producer(void) {
 // ***********ButtonWork*************
 #define CENTER 64
 void HighScore(void) {
-	  int let_idx = 0;
+	  int let_idx = 0, j;
     jsDataType data2, data3;
 	  char letters[3] = { 'A', 'A', 'A' };
+		if (CheckLife() != 0) {
+      OS_Kill();
+			return;
+		}
     OS_bWait(&ResSem);
     if (restarting || scoring) {
 			if (scoring == 1) scoring = 2;
@@ -680,12 +726,16 @@ void HighScore(void) {
 		scoring = 1;
     OS_bSignal(&ResSem);
 		OS_bWait(&LCDFree);
+		for (j = 0; j < JSFIFOSIZE; ++j) {
+			JsFifo_Get(&data3);
+		}
 		x = CENTER;
 		y = CENTER;
     JsFifo_Get(&data3);
     JsFifo_Get(&data2);
 		BSP_LCD_FillScreen(BGCOLOR);
-    BSP_LCD_DrawString(0, 10, "Press SW1 to save", LCD_WHITE);
+		BSP_LCD_Message(0, 6, 5, "Score: ", Score);
+    BSP_LCD_DrawString(2, 10, "Press SW1 to save", LCD_WHITE);
 		// While SW2 is not pressed a second time
 		while (CheckScoring() != 2) {
 			  int i;
@@ -714,16 +764,18 @@ void HighScore(void) {
 					if (i == let_idx) {
 						color = LCD_RED;
 					}
-					BSP_LCD_DrawChar(30 + i * 20, 25, letters[i], color, LCD_BLACK, 2);
+					BSP_LCD_DrawChar(38 + i * 20, 25, letters[i], color, LCD_BLACK, 2);
 				}
 			  // data1 = data2;
 			  data2 = data3;
 			  OS_Sleep(50);
 		}
+		OS_bSignal(&LCDFree);
     OS_bWait(&ResSem);
-		scoring = 0;
+		scoring = 3;
     OS_bSignal(&ResSem);
-		BSP_LCD_DrawString(0, 0, "DONE WITH HS", LCD_WHITE);
+		MergeHighScore(letters, Score);
+		DrawHighScores();
     OS_Kill();  // done, OS does not return from a Kill
 }
 
@@ -732,12 +784,12 @@ void HighScore(void) {
 // Adds another foreground task
 // background threads execute once and return
 void SW1Push(void) {
-    if (OS_MsTime() > 20) {  // debounce
+    if (OS_MsTime() > 50) {  // debounce
         if (OS_AddThread(&HighScore, 128, 4)) {
             OS_ClearMsTime();
             NumCreated++;
         }
-        OS_ClearMsTime();               // at least 20ms between touches
+        OS_ClearMsTime();               // at least 50ms between touches
         Button1PushTime = OS_MsTime();  // Time stamp
     }
 }
@@ -757,6 +809,10 @@ void Consumer(void) {
         JsFifo_Get(&data);
         OS_bSignal(&NeedCubeRedraw);
         OS_bWait(&LCDFree);
+			  if (!CheckLife()) {
+          OS_bSignal(&LCDFree);
+					break;
+				}
 
         BSP_LCD_DrawCrosshair(prevx, prevy, LCD_BLACK);  // Draw a black crosshair
         BSP_LCD_DrawCrosshair(data.x, data.y, LCD_RED);  // Draw a red crosshair
@@ -785,7 +841,7 @@ void Consumer(void) {
 void Restart(void) {
     uint32_t StartTime, CurrentTime, ElapsedTime, i;
     OS_bWait(&ResSem);
-    if (restarting || scoring) {
+    if (restarting || (scoring > 0 && scoring < 3)) {
         OS_bSignal(&ResSem);
         OS_Kill();
         return;
@@ -854,6 +910,7 @@ void Restart(void) {
 
     OS_bWait(&ResSem);
     restarting = 0;
+		scoring = 0;
     OS_bSignal(&ResSem);
 
     OS_AddThread(&Consumer, 128, 1);
@@ -895,6 +952,7 @@ void IdleThread(void) {
 int main(void) {
     uint16_t rawX, rawY;  // raw adc value
     uint32_t seedA, seedB;
+	  int i;
 
     OS_Init();  // initialize, disable interrupts
     Device_Init();
@@ -912,6 +970,10 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
+	
+		for (i = 0; i < NUM_HIGHSCORES; ++i) {
+			highscores[i].score = -1;
+		}
 
     //*******attach background tasks***********
     OS_AddSW1Task(&SW1Push, 4);
@@ -934,6 +996,7 @@ int main(void) {
     NumCreated += OS_AddThread(&InitAndSyncBlocks, 128, 1);
     NumCreated += OS_AddThread(&DrawBlocks, 128, 3);
     NumCreated += OS_AddThread(&IdleThread, 128, 6);
+		
 
     OS_Launch(TIME_2MS);  // doesn't return, interrupts enabled in here
     return 0;             // this never executes
