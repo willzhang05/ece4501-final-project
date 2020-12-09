@@ -808,10 +808,10 @@ void HighScore(void) {
 		    x = CENTER;
 		    y = CENTER;
         JsFifo_Get(&data3);
-			  if (data3.x - CENTER > 0 && data2.x - CENTER <= 0) {
+			  if ((data3.x - CENTER)/3 > 0 && data2.x - CENTER <= 0) {
 					if (let_idx < 2)
 					  let_idx++;
-				} else if (data3.x - CENTER < 0 && data2.x - CENTER >= 0) {
+				} else if ((data3.x - CENTER)/3 < 0 && data2.x - CENTER >= 0) {
 					if (let_idx > 0)
 					  let_idx--;
 				} else {
@@ -850,7 +850,7 @@ void HighScore(void) {
 // Adds another foreground task
 // background threads execute once and return
 void SW1Push(void) {
-    if (OS_MsTime() > 50) {  // debounce
+    if (OS_MsTime() > 250) {  // debounce
         if (OS_AddThread(&HighScore, 128, 4)) {
             OS_ClearMsTime();
             NumCreated++;
