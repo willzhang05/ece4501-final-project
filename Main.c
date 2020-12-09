@@ -625,7 +625,7 @@ void InitAndSyncBlocks(void) {
     OS_Kill();  // done
 }
 
-void DrawBlocks(void) {
+void DrawCubes(void) {
     while (CheckLife() > 0) {
         int i;
         OS_bWait(&NeedCubeRedraw);
@@ -652,7 +652,7 @@ void DrawBlocks(void) {
         OS_Suspend();
     }
 #ifdef DEBUG
-    BSP_LCD_DrawString(0, 10, "DrawBlocks exiting", LCD_WHITE);
+    BSP_LCD_DrawString(0, 10, "DrawCubes exiting", LCD_WHITE);
 #endif
     OS_Signal(&DoneSem);
     OS_Kill();  // done
@@ -984,7 +984,7 @@ void Restart(void) {
 
     OS_AddThread(&Consumer, 128, 1);
     OS_AddThread(&InitAndSyncBlocks, 128, 1);
-    OS_AddThread(&DrawBlocks, 128, 3);
+    OS_AddThread(&DrawCubes, 128, 3);
 
     OS_Kill();  // done, OS does not return from a Kill
 }
@@ -1064,7 +1064,7 @@ int main(void) {
     // create initial foreground threads
     NumCreated += OS_AddThread(&Consumer, 128, 1);
     NumCreated += OS_AddThread(&InitAndSyncBlocks, 128, 1);
-    NumCreated += OS_AddThread(&DrawBlocks, 128, 3);
+    NumCreated += OS_AddThread(&DrawCubes, 128, 3);
     NumCreated += OS_AddThread(&IdleThread, 128, 6);
 		
 
