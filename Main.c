@@ -63,7 +63,7 @@ struct Cube {
     uint16_t color;
     uint16_t life;
     Sema4Type sem;
-	  enum PowerUp powerup;
+    enum PowerUp powerup;
 };
 
 struct Cube cubes[NUM_CUBES];
@@ -219,21 +219,21 @@ Sema4Type reset_crosshair_thr;
 static int crosshair_size = 4;
 int reset_crosshair_id = 0;
 void ResetCrosshairSize() {
-	int id, id2;
-	OS_bWait(&reset_crosshair_sem);
-	id = reset_crosshair_id;
-	crosshair_size = LARGE_XHAIR;
-	OS_bSignal(&reset_crosshair_sem);
-	OS_bSignal(&reset_crosshair_thr);
-	OS_Sleep(5000);
-	OS_bWait(&reset_crosshair_sem);
-	id2 = reset_crosshair_id;
-	if (id == id2) {
-		// reset crosshair size if no other xhair powerup has been picked up
-		crosshair_size = 4;
-	}
-	OS_bSignal(&reset_crosshair_sem);
-	OS_Kill();
+    int id, id2;
+    OS_bWait(&reset_crosshair_sem);
+    id = reset_crosshair_id;
+    crosshair_size = LARGE_XHAIR;
+    OS_bSignal(&reset_crosshair_sem);
+    OS_bSignal(&reset_crosshair_thr);
+    OS_Sleep(5000);
+    OS_bWait(&reset_crosshair_sem);
+    id2 = reset_crosshair_id;
+    if (id == id2) {
+        // reset crosshair size if no other xhair powerup has been picked up
+        crosshair_size = 4;
+    }
+    OS_bSignal(&reset_crosshair_sem);
+    OS_Kill();
 }
 
 Sema4Type reset_speed_sem;
@@ -241,66 +241,65 @@ Sema4Type reset_speed_thr;
 static int speed = 0;
 int reset_speed_id = 0;
 void ResetSpeed() {
-	int id, id2;
-	OS_bWait(&reset_speed_sem);
-	id = reset_speed_id;
-	speed = 1;
-	OS_bSignal(&reset_speed_sem);
-	OS_bSignal(&reset_speed_thr);
-	OS_Sleep(2000);
-	OS_bWait(&reset_speed_sem);
-	id2 = reset_speed_id;
-	if (id == id2) {
-		// reset crosshair size if no other xhair powerup has been picked up
-		speed = 0;
-	}
-	OS_bSignal(&reset_speed_sem);
-	OS_Kill();
+    int id, id2;
+    OS_bWait(&reset_speed_sem);
+    id = reset_speed_id;
+    speed = 1;
+    OS_bSignal(&reset_speed_sem);
+    OS_bSignal(&reset_speed_thr);
+    OS_Sleep(2000);
+    OS_bWait(&reset_speed_sem);
+    id2 = reset_speed_id;
+    if (id == id2) {
+        // reset crosshair size if no other xhair powerup has been picked up
+        speed = 0;
+    }
+    OS_bSignal(&reset_speed_sem);
+    OS_Kill();
 }
 
 void HandlePowerUp(struct Cube *cube) {
-	switch(cube->powerup) {
-		case NONE:
-			break;
-		case LIFE:
-			Life += 1;
-			break;
-		case XHAIR:
-			OS_bWait(&reset_crosshair_sem);
-		  reset_crosshair_id++;
-      OS_AddThread(&ResetCrosshairSize, 128, 6);
-			OS_bSignal(&reset_crosshair_sem);
-			OS_bWait(&reset_crosshair_thr);
-		  break;
-		case SPEED:
-			OS_bWait(&reset_speed_sem);
-		  reset_speed_id++;
-      OS_AddThread(&ResetSpeed, 128, 6);
-			OS_bSignal(&reset_speed_sem);
-			OS_bWait(&reset_speed_thr);
-		  break;
-	}
+    switch (cube->powerup) {
+        case NONE:
+            break;
+        case LIFE:
+            Life += 1;
+            break;
+        case XHAIR:
+            OS_bWait(&reset_crosshair_sem);
+            reset_crosshair_id++;
+            OS_AddThread(&ResetCrosshairSize, 128, 6);
+            OS_bSignal(&reset_crosshair_sem);
+            OS_bWait(&reset_crosshair_thr);
+            break;
+        case SPEED:
+            OS_bWait(&reset_speed_sem);
+            reset_speed_id++;
+            OS_AddThread(&ResetSpeed, 128, 6);
+            OS_bSignal(&reset_speed_sem);
+            OS_bWait(&reset_speed_thr);
+            break;
+    }
 }
-
 
 int CheckBlockIntersection(struct Cube *cube) {
     int px, py;
     px = cube->x * block_width;
     py = cube->y * block_height;
-	  OS_bWait(&reset_crosshair_sem);
+    OS_bWait(&reset_crosshair_sem);
     if (x + crosshair_size >= px && x - crosshair_size <= px + block_width) {
         if (y + crosshair_size >= py && y - crosshair_size <= py + block_height) {
-	          OS_bSignal(&reset_crosshair_sem);
+            OS_bSignal(&reset_crosshair_sem);
             ClearBlockLCD(cube, "CheckInt");
             KillCube(cube);
             OS_bWait(&InfoSem);
             Score += 1;
-					  HandlePowerUp(cube);
+            HandlePowerUp(cube);
             OS_bSignal(&InfoSem);
             return 1;
         }
     }
-	  OS_bSignal(&reset_crosshair_sem);
+    OS_bSignal(&reset_crosshair_sem);
     return 0;
 }
 
@@ -384,17 +383,17 @@ int CanCheckIntersectionAndHold() {
 void DecLife() {
     OS_bWait(&InfoSem);
     if (Life) {
-      Life--;
-			if (!Life) {
-				// Game over
-        OS_bWait(&LCDFree);
-        BSP_LCD_FillScreen(BGCOLOR);
-        BSP_LCD_DrawString(6, 4, "Game over!", LCD_RED);
-				BSP_LCD_Message(0, 6, 5, "Score: ", Score);
-        BSP_LCD_DrawString(2, 8, "Press SW1 to save", LCD_WHITE);
-        BSP_LCD_DrawString(1, 9, "Press SW2 to restart", LCD_WHITE);
-        OS_bSignal(&LCDFree);
-			}
+        Life--;
+        if (!Life) {
+            // Game over
+            OS_bWait(&LCDFree);
+            BSP_LCD_FillScreen(BGCOLOR);
+            BSP_LCD_DrawString(6, 4, "Game over!", LCD_RED);
+            BSP_LCD_Message(0, 6, 5, "Score: ", Score);
+            BSP_LCD_DrawString(2, 8, "Press SW1 to save", LCD_WHITE);
+            BSP_LCD_DrawString(1, 9, "Press SW2 to restart", LCD_WHITE);
+            OS_bSignal(&LCDFree);
+        }
     }
     OS_bSignal(&InfoSem);
 }
@@ -429,7 +428,7 @@ void MoveCubeThread(struct Cube *cube) {
             cube->life--;
             if (!cube->life) {
                 KillCube(cube);
-							  DecLife();
+                DecLife();
             }
         }
         OS_bSignal(&cube->sem);
@@ -489,7 +488,7 @@ void InitCubes(int num_cubes) {
         uint8_t x = 0;
         uint8_t y = 0;
         uint8_t attempt = 0;
-			  int powerup_rand;
+        int powerup_rand;
         do {
             x = get_rand() % HORIZONAL_NUM_BLOCKS;
             y = get_rand() % VERTICAL_NUM_BLOCKS;
@@ -509,20 +508,20 @@ void InitCubes(int num_cubes) {
         cubes[i].dead = 0;
         cubes[i].dir = get_random_direction();
         cubes[i].life = 1 + (get_rand() % (MAX_CUBE_LIFETIME - 1));
-				powerup_rand = get_rand() % 10;
-				if (powerup_rand == 0) {
-					cubes[i].color = LCD_RED;
-					cubes[i].powerup = LIFE;
-				} else if (powerup_rand == 1) {
-					cubes[i].color = LCD_GREEN;
-					cubes[i].powerup = XHAIR;
-				} else if (powerup_rand == 2) {
-					cubes[i].color = LCD_YELLOW;
-					cubes[i].powerup = SPEED;
-				} else {
-					cubes[i].color = LCD_BLUE;
-					cubes[i].powerup = NONE;
-				}
+        powerup_rand = get_rand() % 10;
+        if (powerup_rand == 0) {
+            cubes[i].color = LCD_RED;
+            cubes[i].powerup = LIFE;
+        } else if (powerup_rand == 1) {
+            cubes[i].color = LCD_GREEN;
+            cubes[i].powerup = XHAIR;
+        } else if (powerup_rand == 2) {
+            cubes[i].color = LCD_YELLOW;
+            cubes[i].powerup = SPEED;
+        } else {
+            cubes[i].color = LCD_BLUE;
+            cubes[i].powerup = NONE;
+        }
         OS_InitSemaphore(&cubes[i].sem, 1);
         OS_AddThread(move_cube[i], 128, 3);
     }
@@ -631,11 +630,11 @@ void DrawCubes(void) {
         OS_bWait(&NeedCubeRedraw);
         OS_bWait(&CubeDrawing);
         OS_bWait(&LCDFree);
-			  if (!CheckLife()) {
-          OS_bSignal(&LCDFree);
-          OS_bSignal(&CubeDrawing);
-					break;
-				}
+        if (!CheckLife()) {
+            OS_bSignal(&LCDFree);
+            OS_bSignal(&CubeDrawing);
+            break;
+        }
         // BSP_LCD_FillRect(0, 0, block_width * HORIZONAL_NUM_BLOCKS, block_height *
         // VERTICAL_NUM_BLOCKS, LCD_BLACK);
         for (i = 0; i < NUM_CUBES; ++i) {
@@ -730,8 +729,8 @@ void Producer(void) {
 //--------------end of Task 1-----------------------------
 
 struct HighScore {
-	char letters[4];
-	int score;
+    char letters[4];
+    int score;
 };
 
 #define NUM_HIGHSCORES 5
@@ -739,33 +738,33 @@ struct HighScore {
 struct HighScore highscores[NUM_HIGHSCORES];
 
 void MergeHighScore(char *letters, int score) {
-	int i = 0, j;
-	for (; i < NUM_HIGHSCORES; ++i) {
-		if (highscores[i].score < score) {
-			for (j = NUM_HIGHSCORES - 1; j > i; --j) {
-				highscores[j] = highscores[j-1];
-			}
-			highscores[i].score = score;
-			highscores[i].letters[0] = letters[0];
-			highscores[i].letters[1] = letters[1];
-			highscores[i].letters[2] = letters[2];
-			highscores[i].letters[3] = 0;
-			break;
-		}
-	}
+    int i = 0, j;
+    for (; i < NUM_HIGHSCORES; ++i) {
+        if (highscores[i].score < score) {
+            for (j = NUM_HIGHSCORES - 1; j > i; --j) {
+                highscores[j] = highscores[j - 1];
+            }
+            highscores[i].score = score;
+            highscores[i].letters[0] = letters[0];
+            highscores[i].letters[1] = letters[1];
+            highscores[i].letters[2] = letters[2];
+            highscores[i].letters[3] = 0;
+            break;
+        }
+    }
 }
 
 void DrawHighScores() {
-	  int i;
-		OS_bWait(&LCDFree);
-	  BSP_LCD_FillScreen(BGCOLOR);
-	  for (i = 0; i < NUM_HIGHSCORES; ++i) {
-			if (highscores[i].score < 0) break;
-			BSP_LCD_Message(0, 2 + i * 2, 6, highscores[i].letters, highscores[i].score);
-		}
-		BSP_LCD_DrawString(5, 0, "Highscores", LCD_WHITE);
-		BSP_LCD_DrawString(0, 10, "Press SW2 to restart", LCD_WHITE);
-		OS_bSignal(&LCDFree);
+    int i;
+    OS_bWait(&LCDFree);
+    BSP_LCD_FillScreen(BGCOLOR);
+    for (i = 0; i < NUM_HIGHSCORES; ++i) {
+        if (highscores[i].score < 0) break;
+        BSP_LCD_Message(0, 2 + i * 2, 6, highscores[i].letters, highscores[i].score);
+    }
+    BSP_LCD_DrawString(5, 0, "Highscores", LCD_WHITE);
+    BSP_LCD_DrawString(0, 10, "Press SW2 to restart", LCD_WHITE);
+    OS_bSignal(&LCDFree);
 }
 
 //------------------Task 2--------------------------------
@@ -775,73 +774,71 @@ void DrawHighScores() {
 // ***********ButtonWork*************
 #define CENTER 64
 void HighScore(void) {
-	  int let_idx = 0, j;
+    int let_idx = 0, j;
     jsDataType data2, data3;
-	  char letters[3] = { 'A', 'A', 'A' };
-		if (CheckLife() != 0) {
-      OS_Kill();
-			return;
-		}
+    char letters[3] = {'A', 'A', 'A'};
+    if (CheckLife() != 0) {
+        OS_Kill();
+        return;
+    }
     OS_bWait(&ResSem);
     if (restarting || scoring) {
-			if (scoring == 1) scoring = 2;
-      OS_bSignal(&ResSem);
-      OS_Kill();
-			return;
-		}
-		scoring = 1;
+        if (scoring == 1) scoring = 2;
+        OS_bSignal(&ResSem);
+        OS_Kill();
+        return;
+    }
+    scoring = 1;
     OS_bSignal(&ResSem);
-		OS_bWait(&LCDFree);
-		for (j = 0; j < JSFIFOSIZE; ++j) {
-			JsFifo_Get(&data3);
-		}
-		x = CENTER;
-		y = CENTER;
+    OS_bWait(&LCDFree);
+    for (j = 0; j < JSFIFOSIZE; ++j) {
+        JsFifo_Get(&data3);
+    }
+    x = CENTER;
+    y = CENTER;
     JsFifo_Get(&data3);
     JsFifo_Get(&data2);
-		BSP_LCD_FillScreen(BGCOLOR);
-		BSP_LCD_Message(0, 6, 5, "Score: ", Score);
+    BSP_LCD_FillScreen(BGCOLOR);
+    BSP_LCD_Message(0, 6, 5, "Score: ", Score);
     BSP_LCD_DrawString(2, 10, "Press SW1 to save", LCD_WHITE);
-		// While SW2 is not pressed a second time
-		while (CheckScoring() != 2) {
-			  int i;
-		    x = CENTER;
-		    y = CENTER;
+    // While SW2 is not pressed a second time
+    while (CheckScoring() != 2) {
+        int i;
+        x = CENTER;
+        y = CENTER;
         JsFifo_Get(&data3);
-			  if ((data3.x - CENTER)/3 > 0 && data2.x - CENTER <= 0) {
-					if (let_idx < 2)
-					  let_idx++;
-				} else if ((data3.x - CENTER)/3 < 0 && data2.x - CENTER >= 0) {
-					if (let_idx > 0)
-					  let_idx--;
-				} else {
-					// only update letter if we're not updating let_idx
-					letters[let_idx] += (data3.y - CENTER)/3;
-					if (letters[let_idx] < 'A') {
-						letters[let_idx] = 'Z' - ('A' - letters[let_idx] - 1);
-					} else if (letters[let_idx] > 'Z') {
-						letters[let_idx] = 'A' + (letters[let_idx] - 'Z' - 1);
-					}
-				}
-				
-			// TODO: Update let_idx and letter
-			  for (i = 0; i < 3; ++i) {
-					int16_t color = LCD_WHITE;
-					if (i == let_idx) {
-						color = LCD_RED;
-					}
-					BSP_LCD_DrawChar(38 + i * 20, 25, letters[i], color, LCD_BLACK, 2);
-				}
-			  // data1 = data2;
-			  data2 = data3;
-			  OS_Sleep(50);
-		}
-		OS_bSignal(&LCDFree);
+        if ((data3.x - CENTER) / 3 > 0 && data2.x - CENTER <= 0) {
+            if (let_idx < 2) let_idx++;
+        } else if ((data3.x - CENTER) / 3 < 0 && data2.x - CENTER >= 0) {
+            if (let_idx > 0) let_idx--;
+        } else {
+            // only update letter if we're not updating let_idx
+            letters[let_idx] += (data3.y - CENTER) / 3;
+            if (letters[let_idx] < 'A') {
+                letters[let_idx] = 'Z' - ('A' - letters[let_idx] - 1);
+            } else if (letters[let_idx] > 'Z') {
+                letters[let_idx] = 'A' + (letters[let_idx] - 'Z' - 1);
+            }
+        }
+
+        // TODO: Update let_idx and letter
+        for (i = 0; i < 3; ++i) {
+            int16_t color = LCD_WHITE;
+            if (i == let_idx) {
+                color = LCD_RED;
+            }
+            BSP_LCD_DrawChar(38 + i * 20, 25, letters[i], color, LCD_BLACK, 2);
+        }
+        // data1 = data2;
+        data2 = data3;
+        OS_Sleep(50);
+    }
+    OS_bSignal(&LCDFree);
     OS_bWait(&ResSem);
-		scoring = 3;
+    scoring = 3;
     OS_bSignal(&ResSem);
-		MergeHighScore(letters, Score);
-		DrawHighScores();
+    MergeHighScore(letters, Score);
+    DrawHighScores();
     OS_Kill();  // done, OS does not return from a Kill
 }
 
@@ -875,15 +872,15 @@ void Consumer(void) {
         JsFifo_Get(&data);
         OS_bSignal(&NeedCubeRedraw);
         OS_bWait(&LCDFree);
-			  if (!CheckLife()) {
-          OS_bSignal(&LCDFree);
-					break;
-				}
+        if (!CheckLife()) {
+            OS_bSignal(&LCDFree);
+            break;
+        }
 
-	      OS_bWait(&reset_crosshair_sem);
-        BSP_LCD_DrawCrosshair(prevx, prevy, LARGE_XHAIR, LCD_BLACK);  // Draw a black crosshair
+        OS_bWait(&reset_crosshair_sem);
+        BSP_LCD_DrawCrosshair(prevx, prevy, LARGE_XHAIR, LCD_BLACK);     // Draw a black crosshair
         BSP_LCD_DrawCrosshair(data.x, data.y, crosshair_size, LCD_RED);  // Draw a red crosshair
-	      OS_bSignal(&reset_crosshair_sem);
+        OS_bSignal(&reset_crosshair_sem);
 
         OS_bWait(&InfoSem);
         BSP_LCD_Message(1, 5, 0, "Score:", Score);
@@ -979,7 +976,7 @@ void Restart(void) {
 
     OS_bWait(&ResSem);
     restarting = 0;
-		scoring = 0;
+    scoring = 0;
     OS_bSignal(&ResSem);
 
     OS_AddThread(&Consumer, 128, 1);
@@ -1021,7 +1018,7 @@ void IdleThread(void) {
 int main(void) {
     uint16_t rawX, rawY;  // raw adc value
     uint32_t seedA, seedB;
-	  int i;
+    int i;
 
     OS_Init();  // initialize, disable interrupts
     Device_Init();
@@ -1039,10 +1036,10 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
-	
-		for (i = 0; i < NUM_HIGHSCORES; ++i) {
-			highscores[i].score = -1;
-		}
+
+    for (i = 0; i < NUM_HIGHSCORES; ++i) {
+        highscores[i].score = -1;
+    }
 
     //*******attach background tasks***********
     OS_AddSW1Task(&SW1Push, 4);
@@ -1066,7 +1063,6 @@ int main(void) {
     NumCreated += OS_AddThread(&InitAndSyncBlocks, 128, 1);
     NumCreated += OS_AddThread(&DrawCubes, 128, 3);
     NumCreated += OS_AddThread(&IdleThread, 128, 6);
-		
 
     OS_Launch(TIME_2MS);  // doesn't return, interrupts enabled in here
     return 0;             // this never executes
