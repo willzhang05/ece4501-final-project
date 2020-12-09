@@ -50,8 +50,10 @@ uint8_t area[2];
 // #define DEBUG
 // #define DEBUG_V
 
+#define LARGE_XHAIR 7
+
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
-enum PowerUp { NONE = 0, LIFE = 1 };
+enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED };
 
 struct Cube {
     uint8_t x;
@@ -213,7 +215,47 @@ void KillCube(struct Cube *cube) {
 }
 
 Sema4Type reset_crosshair_sem;
+Sema4Type reset_crosshair_thr;
+static int crosshair_size = 4;
+int reset_crosshair_id = 0;
 void ResetCrosshairSize() {
+	int id, id2;
+	OS_bWait(&reset_crosshair_sem);
+	id = reset_crosshair_id;
+	crosshair_size = LARGE_XHAIR;
+	OS_bSignal(&reset_crosshair_sem);
+	OS_bSignal(&reset_crosshair_thr);
+	OS_Sleep(5000);
+	OS_bWait(&reset_crosshair_sem);
+	id2 = reset_crosshair_id;
+	if (id == id2) {
+		// reset crosshair size if no other xhair powerup has been picked up
+		crosshair_size = 4;
+	}
+	OS_bSignal(&reset_crosshair_sem);
+	OS_Kill();
+}
+
+Sema4Type reset_speed_sem;
+Sema4Type reset_speed_thr;
+static int speed = 0;
+int reset_speed_id = 0;
+void ResetSpeed() {
+	int id, id2;
+	OS_bWait(&reset_speed_sem);
+	id = reset_speed_id;
+	speed = 1;
+	OS_bSignal(&reset_speed_sem);
+	OS_bSignal(&reset_speed_thr);
+	OS_Sleep(2000);
+	OS_bWait(&reset_speed_sem);
+	id2 = reset_speed_id;
+	if (id == id2) {
+		// reset crosshair size if no other xhair powerup has been picked up
+		speed = 0;
+	}
+	OS_bSignal(&reset_speed_sem);
+	OS_Kill();
 }
 
 void HandlePowerUp(struct Cube *cube) {
@@ -223,15 +265,32 @@ void HandlePowerUp(struct Cube *cube) {
 		case LIFE:
 			Life += 1;
 			break;
+		case XHAIR:
+			OS_bWait(&reset_crosshair_sem);
+		  reset_crosshair_id++;
+      OS_AddThread(&ResetCrosshairSize, 128, 6);
+			OS_bSignal(&reset_crosshair_sem);
+			OS_bWait(&reset_crosshair_thr);
+		  break;
+		case SPEED:
+			OS_bWait(&reset_speed_sem);
+		  reset_speed_id++;
+      OS_AddThread(&ResetSpeed, 128, 6);
+			OS_bSignal(&reset_speed_sem);
+			OS_bWait(&reset_speed_thr);
+		  break;
 	}
 }
+
 
 int CheckBlockIntersection(struct Cube *cube) {
     int px, py;
     px = cube->x * block_width;
     py = cube->y * block_height;
-    if (x + 4 >= px && x - 4 <= px + block_width) {
-        if (y + 4 >= py && y - 4 <= py + block_height) {
+	  OS_bWait(&reset_crosshair_sem);
+    if (x + crosshair_size >= px && x - crosshair_size <= px + block_width) {
+        if (y + crosshair_size >= py && y - crosshair_size <= py + block_height) {
+	          OS_bSignal(&reset_crosshair_sem);
             ClearBlockLCD(cube, "CheckInt");
             KillCube(cube);
             OS_bWait(&InfoSem);
@@ -241,6 +300,7 @@ int CheckBlockIntersection(struct Cube *cube) {
             return 1;
         }
     }
+	  OS_bSignal(&reset_crosshair_sem);
     return 0;
 }
 
@@ -453,6 +513,12 @@ void InitCubes(int num_cubes) {
 				if (powerup_rand == 0) {
 					cubes[i].color = LCD_RED;
 					cubes[i].powerup = LIFE;
+				} else if (powerup_rand == 1) {
+					cubes[i].color = LCD_GREEN;
+					cubes[i].powerup = XHAIR;
+				} else if (powerup_rand == 2) {
+					cubes[i].color = LCD_YELLOW;
+					cubes[i].powerup = SPEED;
 				} else {
 					cubes[i].color = LCD_BLUE;
 					cubes[i].powerup = NONE;
@@ -602,14 +668,14 @@ void Device_Init(void) {
 //******** Producer ***************
 int UpdatePosition(uint16_t rawx, uint16_t rawy, jsDataType *data) {
     if (rawx > origin[0]) {
-        x = x + ((rawx - origin[0]) >> 9);
+        x = x + (((rawx - origin[0]) >> 9) << speed);
     } else {
-        x = x - ((origin[0] - rawx) >> 9);
+        x = x - (((origin[0] - rawx) >> 9) << speed);
     }
     if (rawy < origin[1]) {
-        y = y + ((origin[1] - rawy) >> 9);
+        y = y + (((origin[1] - rawy) >> 9) << speed);
     } else {
-        y = y - ((rawy - origin[1]) >> 9);
+        y = y - (((rawy - origin[1]) >> 9) << speed);
     }
     if (x > 127) {
         x = 127;
@@ -814,8 +880,10 @@ void Consumer(void) {
 					break;
 				}
 
-        BSP_LCD_DrawCrosshair(prevx, prevy, LCD_BLACK);  // Draw a black crosshair
-        BSP_LCD_DrawCrosshair(data.x, data.y, LCD_RED);  // Draw a red crosshair
+	      OS_bWait(&reset_crosshair_sem);
+        BSP_LCD_DrawCrosshair(prevx, prevy, LARGE_XHAIR, LCD_BLACK);  // Draw a black crosshair
+        BSP_LCD_DrawCrosshair(data.x, data.y, crosshair_size, LCD_RED);  // Draw a red crosshair
+	      OS_bSignal(&reset_crosshair_sem);
 
         OS_bWait(&InfoSem);
         BSP_LCD_Message(1, 5, 0, "Score:", Score);
@@ -907,6 +975,7 @@ void Restart(void) {
     OS_InitSemaphore(&NeedCubeRedraw, 0);
     OS_InitSemaphore(&InfoSem, 1);
     OS_InitSemaphore(&reset_crosshair_sem, 1);
+    OS_InitSemaphore(&reset_speed_sem, 1);
 
     OS_bWait(&ResSem);
     restarting = 0;
@@ -989,6 +1058,7 @@ int main(void) {
     OS_InitSemaphore(&ResSem, 1);
     OS_InitSemaphore(&DoneSem, 0);
     OS_InitSemaphore(&reset_crosshair_sem, 1);
+    OS_InitSemaphore(&reset_speed_sem, 1);
 
     NumCreated = 0;
     // create initial foreground threads

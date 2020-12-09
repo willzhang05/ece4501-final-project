@@ -1349,7 +1349,7 @@ void BSP_LCD_Message(int device, int line, int col, char *string, unsigned int v
 //					y 			specifies the y coordinate (0 to
 //127) 					color		specifies the color of the crosshair
 // outputs: none
-void BSP_LCD_DrawCrosshair(int16_t x, int16_t y, int16_t color) {
-    BSP_LCD_DrawFastVLine(x, y - 4, 9, color);
-    BSP_LCD_DrawFastHLine(x - 4, y, 9, color);
+void BSP_LCD_DrawCrosshair(int16_t x, int16_t y, int width, int16_t color) {
+    BSP_LCD_DrawFastVLine(x, y - width, width * 2 + 1, color);
+    BSP_LCD_DrawFastHLine(x - width, y, width * 2 + 1, color);
 }
