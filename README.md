@@ -1,5 +1,9 @@
 # Final-Project
 
+# Files
+Slides are in the file `slides.pdf`.
+The demo is here: https://www.youtube.com/watch?v=OmV5wOkYNA8.
+
 ## ATTENTION!
 Our mini-project requires additional steps to work!
 This is due to our use of EEPROM storage.
