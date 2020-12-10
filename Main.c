@@ -55,7 +55,7 @@ uint8_t area[2];
 #define CURSOR_BASE_SPEED 6
 
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
-enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED, FREEZE};
+enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED, FREEZE };
 
 struct Cube {
     uint8_t x;
@@ -101,29 +101,27 @@ unsigned long Life;
 static uint32_t lfsr32;
 static uint32_t lfsr31;
 
-
 #define R LCD_RED
 #define B LCD_BLACK
 const static uint16_t health_bitmap[18][18] = {
-    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
-    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
-    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R }
-};
+    {R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R},
+    {R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R},
+    {R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R}};
 #undef R
 #undef B
 
@@ -289,8 +287,8 @@ static int frozen = 0;
 int freeze_id = 0;
 Sema4Type freeze_sem;
 Sema4Type freeze_thr;
-void Freeze(){
-		int id, id2;
+void Freeze() {
+    int id, id2;
     OS_bWait(&freeze_sem);
     id = freeze_id;
     frozen = 1;
@@ -328,8 +326,8 @@ void HandlePowerUp(struct Cube *cube) {
             OS_bSignal(&reset_speed_sem);
             OS_bWait(&reset_speed_thr);
             break;
-				case FREEZE:
-					  OS_bWait(&freeze_sem);
+        case FREEZE:
+            OS_bWait(&freeze_sem);
             freeze_id++;
             OS_AddThread(&Freeze, 128, 6);
             OS_bSignal(&freeze_sem);
@@ -573,9 +571,9 @@ void InitCubes(int num_cubes) {
         } else if (powerup_rand == 2) {
             cubes[i].color = LCD_YELLOW;
             cubes[i].powerup = SPEED;
-				} else if (powerup_rand == 3) {
-						cubes[i].color = LCD_CYAN;
-					  cubes[i].powerup = FREEZE;
+        } else if (powerup_rand == 3) {
+            cubes[i].color = LCD_CYAN;
+            cubes[i].powerup = FREEZE;
         } else {
             cubes[i].color = LCD_BLUE;
             cubes[i].powerup = NONE;
@@ -702,15 +700,15 @@ void DrawCubes(void) {
             py = cubes[i].y * block_height;
             w = block_width;
             h = block_height;
-            switch(cubes[i].powerup) {
+            switch (cubes[i].powerup) {
                 case LIFE:
-                    BSP_LCD_DrawBitmap(px, py + h - 1, (uint16_t*)health_bitmap, w, h);
+                    BSP_LCD_DrawBitmap(px, py + h - 1, (uint16_t *)health_bitmap, w, h);
                     break;
                 default:
                     BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
             }
         }
-				
+
         OS_bSignal(&LCDFree);
         OS_bSignal(&CubeDrawing);
         OS_Suspend();
@@ -1021,12 +1019,12 @@ void Restart(void) {
     Life = DEFAULT_LIFE;
     x = 63;
     y = 63;
-	  
-		// reset powerups
-		frozen = 0;
-		speed = 0;
-		crosshair_size = 4;
-		
+
+    // reset powerups
+    frozen = 0;
+    speed = 0;
+    crosshair_size = 4;
+
     OS_bSignal(&LCDFree);
 
     OS_InitSemaphore(&MoveCubesSem, 0);
@@ -1037,7 +1035,7 @@ void Restart(void) {
     OS_InitSemaphore(&InfoSem, 1);
     OS_InitSemaphore(&reset_crosshair_sem, 1);
     OS_InitSemaphore(&reset_speed_sem, 1);
-		OS_InitSemaphore(&freeze_sem, 1);
+    OS_InitSemaphore(&freeze_sem, 1);
 
     OS_bWait(&ResSem);
     restarting = 0;
@@ -1121,7 +1119,7 @@ int main(void) {
     OS_InitSemaphore(&DoneSem, 0);
     OS_InitSemaphore(&reset_crosshair_sem, 1);
     OS_InitSemaphore(&reset_speed_sem, 1);
-		OS_InitSemaphore(&freeze_sem, 1);
+    OS_InitSemaphore(&freeze_sem, 1);
 
     NumCreated = 0;
     // create initial foreground threads
