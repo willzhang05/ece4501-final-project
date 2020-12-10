@@ -64,6 +64,8 @@ uint8_t area[2];
 #define FREEZE_DUR 2000
 #define CURSOR_BASE_SPEED 6
 
+#define USE_NV_LEADERBOARD
+
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
 enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED, FREEZE, SLOW };
 
@@ -830,7 +832,9 @@ struct HighScore highscores[NUM_HIGHSCORES];
 
 void MergeHighScore(char *letters, int score) {
     int i = 0, j;
+#ifdef USE_NV_LEADERBOARD
 		uint32_t arr[2 * NUM_HIGHSCORES + 1];
+#endif
     for (; i < NUM_HIGHSCORES; ++i) {
         if (highscores[i].score < score) {
             for (j = NUM_HIGHSCORES - 1; j > i; --j) {
@@ -844,10 +848,12 @@ void MergeHighScore(char *letters, int score) {
             break;
         }
     }
+#ifdef USE_NV_LEADERBOARD
 		i = 0;
 		arr[0] = MAGICBIT;
 		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(struct HighScore));
 		EEPROMProgram(arr, 0x0, 40);
+#endif
 }
 
 void DrawHighScores() {
@@ -903,9 +909,9 @@ void HighScore(void) {
         x = CENTER;
         y = CENTER;
         JsFifo_Get(&data3);
-        if ((data3.x - CENTER) / 3 > 0 && data2.x - CENTER <= 0) {
+        if ((data3.x - CENTER) / 2 > 0 && data2.x - CENTER <= 0) {
             if (let_idx < 2) let_idx++;
-        } else if ((data3.x - CENTER) / 3 < 0 && data2.x - CENTER >= 0) {
+        } else if ((data3.x - CENTER) / 2 < 0 && data2.x - CENTER >= 0) {
             if (let_idx > 0) let_idx--;
         } else {
             // only update letter if we're not updating let_idx
@@ -1120,17 +1126,20 @@ void IdleThread(void) {
 int main(void) {
     uint16_t rawX, rawY;  // raw adc value
     uint32_t seedA, seedB;
-	  uint32_t arr[NUM_HIGHSCORES + 1];
     int i;
+#ifdef USE_NV_LEADERBOARD
+	  uint32_t arr[NUM_HIGHSCORES + 1];
+#endif
 
     OS_Init();  // initialize, disable interrupts
     Device_Init();
 	
+#ifdef USE_NV_LEADERBOARD
 	  //SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 		SysCtlDelay(2000000);
 		SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
-	
 		EEPROMInit();
+#endif
     CrossHair_Init();
     DataLost = 0;   // lost data between producer and consumer
     MaxJitter = 0;  // in 1us units
@@ -1145,6 +1154,10 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
+		for (i = 0; i < NUM_HIGHSCORES; ++i) {
+			highscores[i].score = -1;
+		}
+#ifdef USE_NV_LEADERBOARD
 		EEPROMRead(arr, 0x0, 40);
 		if (arr[0] != MAGICBIT){
 			for (i = 0; i < NUM_HIGHSCORES; ++i) {
@@ -1153,6 +1166,7 @@ int main(void) {
 		} else{
 			memcpy(highscores, arr + 1, sizeof(struct HighScore) * NUM_HIGHSCORES);
 		}
+#endif
 
     //*******attach background tasks***********
     OS_AddSW1Task(&SW1Push, 4);
