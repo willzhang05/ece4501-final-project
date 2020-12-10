@@ -7,18 +7,18 @@ This is due to our use of EEPROM storage.
 # Steps
 To run our code, there are a few additional steps. 
 
-* Open the project in `driverlib/driverlib`
+* Open the project file `driverlib/driverlib.uvproj`
 
 * Build all targets for this file. 
 
-* Creates a `.lib` file in `driverlib/rvmdk/`
+* This should create a `.lib` file in `driverlib/rvmdk/`
 
-* Open up the Keil project file `finalproj.uvproj`
+* Open the Keil project file `finalproj.uvproj`
 
-* On the source folder, right click, and select 'Add existing files.' 
+* In Keil, right click on the source folder and select 'Add existing files.' 
 
-* From the drop down, select `.lib` files
+* In the dropdown, select `.lib` as the file type
 
-* Navigate to ddriverlib/rvmdk, and click on the `.lib` file
+* Navigate to `ddriverlib/rvmdk` and select the `.lib` file
 
 * Build target and run!
