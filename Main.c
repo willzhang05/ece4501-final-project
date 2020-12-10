@@ -790,7 +790,7 @@ struct HighScore {
     int score;
 };
 
-#define NUM_HIGHSCORES 5
+#define NUM_HIGHSCORES 4
 
 struct HighScore highscores[NUM_HIGHSCORES];
 
