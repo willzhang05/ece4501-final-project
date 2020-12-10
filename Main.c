@@ -8,6 +8,7 @@
 // Modified by Mustafa Hotaki 7/29/18, mkh3cf@virginia.edu
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "OS.h"
 #include "tm4c123gh6pm.h"
 #include "LCD.h"
@@ -16,7 +17,14 @@
 #include "FIFO.h"
 #include "joystick.h"
 #include "PORTE.h"
-
+#include "driverlib/eeprom.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/debug.h"
+#include "driverlib/gpio.h"
+#include "driverlib/flash.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
 // Constants
 #define BGCOLOR LCD_BLACK
 #define CROSSSIZE 5
@@ -24,6 +32,7 @@
 #define PSEUDOPERIOD 8000000
 #define LIFETIME 1000
 #define RUNLENGTH 600  // 30 seconds run length
+#define MAGICBIT 127
 
 extern Sema4Type LCDFree;
 uint16_t
@@ -834,6 +843,7 @@ struct HighScore highscores[NUM_HIGHSCORES];
 
 void MergeHighScore(char *letters, int score) {
     int i = 0, j;
+		uint32_t arr[NUM_HIGHSCORES + 1];
     for (; i < NUM_HIGHSCORES; ++i) {
         if (highscores[i].score < score) {
             for (j = NUM_HIGHSCORES - 1; j > i; --j) {
@@ -847,6 +857,10 @@ void MergeHighScore(char *letters, int score) {
             break;
         }
     }
+		i = 0;
+		arr[0] = MAGICBIT;
+		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(uint32_t));
+		EEPROMProgram(arr, 0x0, NUM_HIGHSCORES + 1);
 }
 
 void DrawHighScores() {
@@ -1119,10 +1133,17 @@ void IdleThread(void) {
 int main(void) {
     uint16_t rawX, rawY;  // raw adc value
     uint32_t seedA, seedB;
+	  uint32_t arr[NUM_HIGHSCORES + 1];
     int i;
 
     OS_Init();  // initialize, disable interrupts
     Device_Init();
+	
+	  SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+		SysCtlDelay(2000000);
+		SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+	
+		EEPROMInit();
     CrossHair_Init();
     DataLost = 0;   // lost data between producer and consumer
     MaxJitter = 0;  // in 1us units
@@ -1137,10 +1158,14 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
-
-    for (i = 0; i < NUM_HIGHSCORES; ++i) {
+		EEPROMRead(arr, 0x0, NUM_HIGHSCORES + 1);
+		if (arr[0] != MAGICBIT){
+			for (i = 0; i < NUM_HIGHSCORES; ++i) {
         highscores[i].score = -1;
-    }
+			}
+		} else{
+			memcpy(highscores, arr + 1, sizeof(uint32_t) * NUM_HIGHSCORES);
+		}
 
     //*******attach background tasks***********
     OS_AddSW1Task(&SW1Push, 4);
