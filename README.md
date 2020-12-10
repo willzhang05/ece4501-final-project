@@ -1,20 +1,18 @@
-# Mini-Project-4-Solution
-Mini Project 4 Solution
+# Final-Project
+To run our code, there are a few additional steps. 
 
-To run our solution requires a couple of additional steps. 
+* Open the project in `driverlib/driverlib`
 
-First open the project in driverlib/driverlib
+* Build all targets for this file. 
 
-Build all targets for this file. 
+* Creates a `.lib` file in `driverlib/rvmdk/`
 
-This should create a .lib file in driverlib/rvmdk/
+* Open up the Keil project file `finalproj.uvproj`
 
-Open up our project finalproj
+* On the source folder, right click, and select 'Add existing files.' 
 
-On the source folder, right click, Add existings files. 
+* From the drop down, select `.lib` files
 
-From the drop down, select .lib files
+* Navigate to ddriverlib/rvmdk, and click on the `.lib` file
 
-Navigate to ddriverlib/rvmdk, and click on the lib file
-
-Build target and run :)
+* Build target and run!
