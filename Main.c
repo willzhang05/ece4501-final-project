@@ -51,7 +51,7 @@ uint8_t area[2];
 // #define DEBUG_V
 
 #define LARGE_XHAIR 7
-
+#define CURSOR_BASE_SPEED 6
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
 enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED };
 
@@ -666,16 +666,10 @@ void Device_Init(void) {
 // background thread executed at 20 Hz
 //******** Producer ***************
 int UpdatePosition(uint16_t rawx, uint16_t rawy, jsDataType *data) {
-    if (rawx > origin[0]) {
-        x = x + (((rawx - origin[0]) >> 9) << speed);
-    } else {
-        x = x - (((origin[0] - rawx) >> 9) << speed);
-    }
-    if (rawy < origin[1]) {
-        y = y + (((origin[1] - rawy) >> 9) << speed);
-    } else {
-        y = y - (((rawy - origin[1]) >> 9) << speed);
-    }
+    int16_t deltaX = (rawx - origin[0]) * (CURSOR_BASE_SPEED << speed) / origin[0];
+    int16_t deltaY = (origin[1] - rawy) * (CURSOR_BASE_SPEED << speed) / origin[1];
+    x += deltaX;
+    y += deltaY;
     if (x > 127) {
         x = 127;
     }
