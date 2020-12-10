@@ -19,7 +19,7 @@ To run our code, there are a few additional steps.
 
 * In the dropdown, select `.lib` as the file type
 
-* Navigate to `ddriverlib/rvmdk` and select the `.lib` file
+* Navigate to `driverlib/rvmdk` and select the `.lib` file
 
 * Build target and run!
 
