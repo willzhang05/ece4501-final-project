@@ -22,3 +22,11 @@ To run our code, there are a few additional steps.
 * Navigate to `ddriverlib/rvmdk` and select the `.lib` file
 
 * Build target and run!
+
+# If EEPROM does not work!
+
+Find and delete the following line at the top of `Main.c`.
+
+```c
+#define USE_NV_LEADERBOARD
+```
