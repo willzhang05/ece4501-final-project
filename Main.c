@@ -833,7 +833,7 @@ struct HighScore highscores[NUM_HIGHSCORES];
 void MergeHighScore(char *letters, int score) {
     int i = 0, j;
 #ifdef USE_NV_LEADERBOARD
-		uint32_t arr[2 * NUM_HIGHSCORES + 1];
+    uint32_t arr[2 * NUM_HIGHSCORES + 1];
 #endif
     for (; i < NUM_HIGHSCORES; ++i) {
         if (highscores[i].score < score) {
@@ -849,10 +849,10 @@ void MergeHighScore(char *letters, int score) {
         }
     }
 #ifdef USE_NV_LEADERBOARD
-		i = 0;
-		arr[0] = MAGICBIT;
-		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(struct HighScore));
-		EEPROMProgram(arr, 0x0, 40);
+    i = 0;
+    arr[0] = MAGICBIT;
+    memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(struct HighScore));
+    EEPROMProgram(arr, 0x0, 40);
 #endif
 }
 
@@ -1128,17 +1128,17 @@ int main(void) {
     uint32_t seedA, seedB;
     int i;
 #ifdef USE_NV_LEADERBOARD
-	  uint32_t arr[NUM_HIGHSCORES + 1];
+    uint32_t arr[NUM_HIGHSCORES + 1];
 #endif
 
     OS_Init();  // initialize, disable interrupts
     Device_Init();
-	
+
 #ifdef USE_NV_LEADERBOARD
-	  //SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
-		SysCtlDelay(2000000);
-		SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
-		EEPROMInit();
+    // SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+    SysCtlDelay(2000000);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+    EEPROMInit();
 #endif
     CrossHair_Init();
     DataLost = 0;   // lost data between producer and consumer
@@ -1154,18 +1154,18 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
-		for (i = 0; i < NUM_HIGHSCORES; ++i) {
-			highscores[i].score = -1;
-		}
-#ifdef USE_NV_LEADERBOARD
-		EEPROMRead(arr, 0x0, 40);
-		if (arr[0] != MAGICBIT){
-			for (i = 0; i < NUM_HIGHSCORES; ++i) {
+    for (i = 0; i < NUM_HIGHSCORES; ++i) {
         highscores[i].score = -1;
-			}
-		} else{
-			memcpy(highscores, arr + 1, sizeof(struct HighScore) * NUM_HIGHSCORES);
-		}
+    }
+#ifdef USE_NV_LEADERBOARD
+    EEPROMRead(arr, 0x0, 40);
+    if (arr[0] != MAGICBIT) {
+        for (i = 0; i < NUM_HIGHSCORES; ++i) {
+            highscores[i].score = -1;
+        }
+    } else {
+        memcpy(highscores, arr + 1, sizeof(struct HighScore) * NUM_HIGHSCORES);
+    }
 #endif
 
     //*******attach background tasks***********
