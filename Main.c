@@ -909,9 +909,9 @@ void HighScore(void) {
         x = CENTER;
         y = CENTER;
         JsFifo_Get(&data3);
-        if ((data3.x - CENTER) / 2 > 0 && data2.x - CENTER <= 0) {
+        if ((data3.x - CENTER) > 0 && data2.x - CENTER <= 0) {
             if (let_idx < 2) let_idx++;
-        } else if ((data3.x - CENTER) / 2 < 0 && data2.x - CENTER >= 0) {
+        } else if ((data3.x - CENTER) < 0 && data2.x - CENTER >= 0) {
             if (let_idx > 0) let_idx--;
         } else {
             // only update letter if we're not updating let_idx
