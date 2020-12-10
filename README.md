@@ -1,4 +1,10 @@
 # Final-Project
+
+## ATTENTION!
+Our mini-project requires additional steps to work!
+This is due to our use of EEPROM storage.
+
+# Steps
 To run our code, there are a few additional steps. 
 
 * Open the project in `driverlib/driverlib`
