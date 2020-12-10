@@ -32,7 +32,7 @@
 #define PSEUDOPERIOD 8000000
 #define LIFETIME 1000
 #define RUNLENGTH 600  // 30 seconds run length
-#define MAGICBIT 127
+#define MAGICBIT 27
 
 extern Sema4Type LCDFree;
 uint16_t
@@ -860,7 +860,7 @@ void MergeHighScore(char *letters, int score) {
 		i = 0;
 		arr[0] = MAGICBIT;
 		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(uint32_t));
-		EEPROMProgram(arr, 0x0, NUM_HIGHSCORES + 1);
+		EEPROMProgram(arr, 0x0, 40);
 }
 
 void DrawHighScores() {
@@ -1139,7 +1139,7 @@ int main(void) {
     OS_Init();  // initialize, disable interrupts
     Device_Init();
 	
-	  SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+	  //SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 		SysCtlDelay(2000000);
 		SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
 	
@@ -1158,7 +1158,7 @@ int main(void) {
     init_lfsrs(seedA, seedB);
     //********initialize communication channels
     JsFifo_Init();
-		EEPROMRead(arr, 0x0, NUM_HIGHSCORES + 1);
+		EEPROMRead(arr, 0x0, 40);
 		if (arr[0] != MAGICBIT){
 			for (i = 0; i < NUM_HIGHSCORES; ++i) {
         highscores[i].score = -1;
