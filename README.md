@@ -5,8 +5,8 @@ Slides are in the file `slides.pdf`.
 The report PDF and source are in the `report` directory.
 The demo is here: https://www.youtube.com/watch?v=OmV5wOkYNA8.
 Here are more demo videos (we forgot to push the restart button in the above demo!):
-* https://photos.app.goo.gl/S6xGfBqxbm5okj2Z6
-* https://photos.app.goo.gl/tHRq24FNFRKtxrhb8
+* https://www.youtube.com/watch?v=TUwJ-5sQj-w
+* https://www.youtube.com/watch?v=lhYUkJOL8_g
 
 ## ATTENTION!
 Our mini-project requires additional steps to work!
