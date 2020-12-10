@@ -55,7 +55,7 @@ uint8_t area[2];
 #define CURSOR_BASE_SPEED 6
 
 enum Direction { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3 };
-enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED, FREEZE };
+enum PowerUp { NONE = 0, LIFE, XHAIR, SPEED, FREEZE, SLOW};
 
 struct Cube {
     uint8_t x;
@@ -283,6 +283,25 @@ void ResetSpeed() {
     OS_bSignal(&reset_speed_sem);
     OS_Kill();
 }
+void SlowDown() {
+	int id, id2;
+    OS_bWait(&reset_speed_sem);
+    id = reset_speed_id;
+    speed = -1;
+    OS_bSignal(&reset_speed_sem);
+    OS_bSignal(&reset_speed_thr);
+    OS_Sleep(2000);
+    OS_bWait(&reset_speed_sem);
+    id2 = reset_speed_id;
+    if (id == id2) {
+        // reset crosshair size if no other xhair powerup has been picked up
+        speed = 0;
+    }
+    OS_bSignal(&reset_speed_sem);
+    OS_Kill();
+}
+
+
 static int frozen = 0;
 int freeze_id = 0;
 Sema4Type freeze_sem;
@@ -332,6 +351,14 @@ void HandlePowerUp(struct Cube *cube) {
             OS_AddThread(&Freeze, 128, 6);
             OS_bSignal(&freeze_sem);
             OS_bWait(&freeze_thr);
+						break;
+				case SLOW:
+					  OS_bWait(&reset_speed_sem);
+            reset_speed_id++;
+            OS_AddThread(&SlowDown, 128, 6);
+            OS_bSignal(&reset_speed_sem);
+            OS_bWait(&reset_speed_thr);
+            break;
     }
 }
 
@@ -481,7 +508,8 @@ void MoveCubeThread(struct Cube *cube) {
             cube->life--;
             if (!cube->life) {
                 KillCube(cube);
-                DecLife();
+								if (cube->powerup != SLOW)
+									DecLife();
             }
         }
         OS_bSignal(&cube->sem);
@@ -574,6 +602,9 @@ void InitCubes(int num_cubes) {
         } else if (powerup_rand == 3) {
             cubes[i].color = LCD_CYAN;
             cubes[i].powerup = FREEZE;
+				} else if (powerup_rand == 4) {
+						cubes[i].color = LCD_GREY;
+            cubes[i].powerup = SLOW;
         } else {
             cubes[i].color = LCD_BLUE;
             cubes[i].powerup = NONE;
@@ -729,8 +760,15 @@ void Device_Init(void) {
 // background thread executed at 20 Hz
 //******** Producer ***************
 int UpdatePosition(uint16_t rawx, uint16_t rawy, jsDataType *data) {
-    int16_t deltaX = (rawx - origin[0]) * (CURSOR_BASE_SPEED << speed) / origin[0];
-    int16_t deltaY = (origin[1] - rawy) * (CURSOR_BASE_SPEED << speed) / origin[1];
+	  int16_t deltaX, deltaY;
+		if (speed > 0){
+			deltaX = (rawx - origin[0]) * (CURSOR_BASE_SPEED << speed) / origin[0];
+			deltaY = (origin[1] - rawy) * (CURSOR_BASE_SPEED << speed) / origin[1];
+		}
+		else {
+			deltaX = (rawx - origin[0]) * (CURSOR_BASE_SPEED >> (-1*speed)) / origin[0];
+			deltaY = (origin[1] - rawy) * (CURSOR_BASE_SPEED >> (-1*speed)) / origin[1];
+		}
     x += deltaX;
     y += deltaY;
     if (x > 127) {
