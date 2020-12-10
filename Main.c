@@ -101,6 +101,32 @@ unsigned long Life;
 static uint32_t lfsr32;
 static uint32_t lfsr31;
 
+
+#define R LCD_RED
+#define B LCD_BLACK
+const static uint16_t health_bitmap[18][18] = {
+    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
+    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, B, B, B, B, B, B, B, R, R, B, B, B, B, B, B, B, R },
+    { R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R }
+};
+#undef R
+#undef B
+
 int shift_lfsr(uint32_t *lfsr, uint32_t poly_mask) {
     int feedback = *lfsr & 1;
     *lfsr >>= 1;
@@ -676,8 +702,15 @@ void DrawCubes(void) {
             py = cubes[i].y * block_height;
             w = block_width;
             h = block_height;
-            BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
+            switch(cubes[i].powerup) {
+                case LIFE:
+                    BSP_LCD_DrawBitmap(px, py + h - 1, (uint16_t*)health_bitmap, w, h);
+                    break;
+                default:
+                    BSP_LCD_FillRect(px, py, w, h, cubes[i].color);
+            }
         }
+				
         OS_bSignal(&LCDFree);
         OS_bSignal(&CubeDrawing);
         OS_Suspend();
