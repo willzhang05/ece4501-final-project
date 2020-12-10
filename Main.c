@@ -846,7 +846,7 @@ void MergeHighScore(char *letters, int score) {
     }
 		i = 0;
 		arr[0] = MAGICBIT;
-		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(uint64_t));
+		memcpy(arr + 1, highscores, NUM_HIGHSCORES * sizeof(struct HighScore));
 		EEPROMProgram(arr, 0x0, 40);
 }
 
@@ -1151,7 +1151,7 @@ int main(void) {
         highscores[i].score = -1;
 			}
 		} else{
-			memcpy(highscores, arr + 1, sizeof(uint64_t) * NUM_HIGHSCORES);
+			memcpy(highscores, arr + 1, sizeof(struct HighScore) * NUM_HIGHSCORES);
 		}
 
     //*******attach background tasks***********
